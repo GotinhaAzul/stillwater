@@ -1,0 +1,4 @@
+native/build/
+tests/build/
+__pycache__/
+*.pyc

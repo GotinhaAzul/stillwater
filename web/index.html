@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-scene="pond">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stillwater — living ASCII landscapes</title>
+<style>
+:root{color-scheme:dark;--ink:#d6ded8;--quiet:#91a69e;--line:#30433e;--ground:#081411;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace}*{box-sizing:border-box}body{margin:0;background:var(--ground);color:var(--ink);overflow:hidden}button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}button:focus-visible,a:focus-visible{outline:2px solid #d5bb84;outline-offset:5px}button:hover{color:#fff}::selection{background:#a37b42;color:#fff}.stage{position:relative;height:100dvh;min-height:360px;isolation:isolate;overflow:hidden}canvas{position:absolute;inset:0;width:100%;height:100%}header{position:absolute;top:30px;left:36px;right:36px;display:flex;justify-content:space-between;align-items:center;gap:20px;transition:opacity .5s}.wordmark{font-size:12px;letter-spacing:.23em;font-weight:400}.edition{font-size:10px;letter-spacing:.1em;color:var(--quiet)}.dock{position:absolute;bottom:28px;left:36px;right:36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;transition:opacity .5s}.caption h1{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(25px,3vw,42px);margin:0 0 9px;letter-spacing:-.02em}.caption p{font-size:10px;color:var(--quiet);letter-spacing:.04em;margin:0}.controls{display:flex;flex-direction:column;align-items:flex-end;gap:18px}nav{display:flex;gap:25px}nav button{font-size:11px;padding:8px 0;border-bottom:1px solid transparent;color:var(--quiet)}nav button[aria-pressed=true]{color:var(--ink);border-color:#b5c4b8}.tools{display:flex;align-items:center;gap:18px}.tools button{font-size:10px;color:var(--quiet);padding:3px 0}.tools button:hover{color:var(--ink)}.tools kbd{font:inherit;color:#d5bb84}.clean header,.clean .dock{opacity:0;pointer-events:none}.restore{position:absolute;right:22px;top:20px;opacity:0;pointer-events:none;color:var(--quiet);font-size:11px;padding:10px}.clean .restore{opacity:0;pointer-events:auto}.clean .restore:hover,.clean .restore:focus-visible{opacity:1}.status{position:absolute;top:65px;right:36px;color:var(--quiet);font-size:10px;opacity:0;transition:opacity .3s}.status.visible{opacity:1}@media(max-width:640px){header{left:20px;right:20px;top:22px}.edition{font-size:8px}.dock{left:20px;right:20px;bottom:22px;display:block}.caption{margin-bottom:22px}.caption p{font-size:9px}.controls{align-items:flex-start;gap:12px}nav{gap:25px}.tools{gap:17px}.caption h1{font-size:30px}}
+</style>
+</head>
+<body>
+<main class="stage" aria-label="Animated ASCII landscapes">
+<canvas id="art" role="img" aria-label="Copper koi swimming through a dark pond rendered entirely in ASCII characters"></canvas>
+<header><div class="wordmark">STILLWATER</div><div class="edition">living landscapes / made of characters</div></header>
+<div class="dock"><div class="caption"><h1 id="title">The quiet pond</h1><p id="description">A little movement. A little room to breathe.</p></div><div class="controls"><nav aria-label="Choose landscape"><button data-scene="pond" aria-pressed="true">Koi pond</button><button data-scene="sky" aria-pressed="false">Night sky</button><button data-scene="mountains" aria-pressed="false">Mountains</button></nav><div class="tools"><button id="pause" aria-label="Pause animation">Pause <kbd>␣</kbd></button><button id="speed">Pace 1×</button><button id="save">Save PNG</button><button id="wallpaper">Hide controls <kbd>W</kbd></button></div></div></div>
+<button class="restore" id="restore">Show controls · W</button><div class="status" role="status" id="status"></div>
+</main>
+<script>
+(()=>{
+'use strict';
+const canvas=document.getElementById('art'),ctx=canvas.getContext('2d',{alpha:false});
+const meta={pond:['The quiet pond','A little movement. A little room to breathe.','Copper koi swimming among lily pads and ripples in an ASCII pond'],sky:['Somewhere, after midnight','Stay a while. There is nowhere else to be.','Twinkling stars, a crescent moon and shooting stars over a distant ASCII horizon'],mountains:['Where the world slows down','Mountains, mist, and the space between.','Layered ASCII mountain peaks above a misty lake with evergreen trees']};
+let scene=new URLSearchParams(location.search).get('scene')||document.documentElement.dataset.scene;if(!meta[scene])scene='pond';
+let timer=null;
+let w,h,cols,rows,cw,ch,grid,colors,oldGrid,oldColors,fullRedraw=true,layers={},paused=matchMedia('(prefers-reduced-motion: reduce)').matches,pace=1,time=0,previous=0,lastDraw=0;
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const hash=(x,y=0)=>{const v=Math.sin(x*127.1+y*311.7)*43758.5453;return v-Math.floor(v)};
+function resize(){w=canvas.clientWidth;h=canvas.clientHeight;const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);cw=w<600?6:8;ch=cw*1.65;cols=Math.ceil(w/cw);rows=Math.ceil(h/ch);grid=new Array(cols*rows);colors=new Array(cols*rows);oldGrid=new Array(cols*rows);oldColors=new Array(cols*rows);layers={};fullRedraw=true;draw()}
+function cacheLayer(key,paint){let layer=layers[key];if(!layer){const g=grid,c=colors;grid=new Array(cols*rows).fill('');colors=new Array(cols*rows);paint();layer=[];for(let i=0;i<grid.length;i++)if(grid[i])layer.push([i,grid[i],colors[i]]);grid=g;colors=c;layers[key]=layer}for(let k=0;k<layer.length;k++){const e=layer[k];grid[e[0]]=e[1];colors[e[0]]=e[2]}}
+function put(x,y,c,color){x=Math.round(x);y=Math.round(y);if(x>=0&&x<cols&&y>=0&&y<rows){let i=y*cols+x;grid[i]=c;colors[i]=color}}
+function ring(x,y,r,color,phase=0){for(let a=0;a<6.28;a+=.07){if(Math.sin(a*5+phase)>.0)put(x+Math.cos(a)*r,y+Math.sin(a)*r*.43,Math.abs(Math.cos(a))>.7?'|':'~',color)}}
+function pond(t){
+for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){let v=Math.sin(x*.14+y*.24+t*.3)+Math.sin(x*.06-y*.31-t*.2);let n=hash(x,y);if(n<.10||v>1.7)put(x,y,n<.025?'~':'.',v>1.7?'#234c43':'#132e29')}
+// Quiet banks of reeds, disappearing into the water.
+for(let i=0;i<95;i++){const x=hash(i,1)*cols,y=hash(i,2)*rows;if((x<cols*.14&&y<rows*.6)||(x>cols*.88&&y>rows*.2)){let len=2+hash(i,3)*7;for(let k=0;k<len;k++)put(x+Math.sin(k*.25+t*.3+i)*1.2,y-k,'/','#2e5140')}}
+const pads=[[.22,.24,5.5],[.29,.19,3.8],[.78,.64,6.1],[.83,.71,4],[.16,.64,4.2],[.72,.19,3.8]];
+for(let i=0;i<pads.length;i++){let [px,py,r]=pads[i];let x=px*cols+Math.sin(t*.14+i)*.7,y=py*rows;ring(x,y,r+2,'#214138',t*.1);for(let yy=-r*.53;yy<=r*.53;yy++)for(let xx=-r;xx<=r;xx++){let d=xx*xx/(r*r)+yy*yy/(r*r*.28);if(d<1&&!(xx>0&&Math.abs(yy)<xx*.2)){let edge=d>.72;put(x+xx,y+yy,edge?'o':hash(xx+i,yy)>.55?':':'=',edge?'#56734c':'#3a5839')}}if(i===0||i===2){put(x-1,y-1,'{','#e1b6a2');put(x,y-1,'*','#f4d9be');put(x+1,y-1,'}','#c48584');put(x,y,'v','#a97076')}}
+for(let i=0;i<7;i++){let phase=(t*.28+i*3.7),x=cols*(.5+.27*Math.sin(phase*.36+i)),y=rows*(.46+.24*Math.cos(phase*.43+i*1.7));let dx=.27*.36*Math.cos(phase*.36+i),dy=-.24*.43*Math.sin(phase*.43+i*1.7);fish(x,y,Math.atan2(dy*ch,dx*cw),i,t)}
+for(let i=0;i<4;i++){const r=(t*1.4+i*6)%22;ring(cols*(.37+i*.12),rows*(.28+(i%3)*.15),r,`rgb(${20+Math.round((1-r/22)*12)},${44+Math.round((1-r/22)*17)},${39+Math.round((1-r/22)*11)})`,i)}
+}
+function fish(cx,cy,angle,id,t){const len=7+id%3,co=Math.cos(angle),si=Math.sin(angle);for(let u=-len-4;u<=len;u+=.6)for(let v=-3.7;v<=3.7;v+=.65){let tail=u< -len*.65,bodyWidth=2.8*Math.sqrt(Math.max(0,1-(u/len)**2));let tailWidth=tail?(( -u-len*.65)/(len*.35+4))*2.5:0;let fin=Math.abs(u+1)<2.5?3.8-Math.abs(u+1)*.6:0;let sway=Math.sin(t*1.7+u*.5+id)*clamp(-u/len)*1.1;let vv=v+sway;if(Math.abs(vv)>Math.max(bodyWidth,tailWidth,fin*.8))continue;let px=cx+(u*co-vv*si)/1.1,py=cy+(u*si+vv*co)*cw/ch;let edge=Math.abs(vv)>bodyWidth*.68,patch=Math.sin(u*.9+id*2)+Math.cos(vv*1.7+id)>.15;let color=id%3===0?(patch?'#d4cbb0':'#b56c48'):(patch?'#da9864':'#7f4034');let c=edge?':':patch?'o':'#';if(Math.abs(vv)>bodyWidth&&!tail){color='#5c6b52';c='/'}if(tail){c=(Math.round(u+t*2)%2)?'/':':';color='#b28461'}if(u>len*.65&&Math.abs(vv)<.6){c='.';color='#f3dcb1'}put(px,py,c,color)}}
+function skyline(x,layer){const n=x/cols;return rows*(.53+layer*.09+Math.sin(n*7+layer*2)*.055+Math.sin(n*19+layer)*.025+Math.sin(n*39+layer*4)*.009)}
+function stars(t,mountain=false){for(let i=0;i<Math.round(cols*rows*.065);i++){let x=hash(i,4)*cols,y=hash(i,5)*rows*.7;let light=.5+.5*Math.sin(t*(.3+hash(i,6)) +i);let c=hash(i,7)>.97?'+':hash(i,8)>.8?'*':'.';const g=65+Math.round(light*12)*8;put(x,y,c,`rgb(${g*.82|0},${g*.94|0},${g+15})`)}
+if(!mountain){for(let i=0;i<cols*12;i++){let x=hash(i,10)*cols,y=rows*.17+x/cols*rows*.26+(hash(i,11)-.5)*rows*.19;let distance=Math.abs(y-(rows*.17+x/cols*rows*.26))/(rows*.1);if(hash(i,12)>distance*.7)put(x,y,'.',hash(i,13)>.8?'#667c96':'#293e57')}}
+let mx=cols*.76,my=rows*.19,r=Math.min(cols*.035,rows*.085);for(let y=-r;y<=r;y++)for(let x=-r*1.8;x<=r*1.8;x++){let d=(x/1.65)**2+y*y,cut=((x/1.65)-r*.4)**2+(y+r*.19)**2;if(d<r*r&&cut>r*r*.86)put(mx+x,my+y,hash(x,y)>.6?'o':':','#d1d5b4')}
+const cycle=(t+8)%29;if(cycle<1.6){let sx=cols*(.18+cycle*.15),sy=rows*(.12+cycle*.07);for(let k=0;k<13;k++)put(sx-k,sy-k*.3,k===0?'*':'.',k<3?'#e0e5d6':'#40596c')}
+}
+function mountains(t,night=false){stars(t,true);const water=rows*.70;
+cacheLayer('terrain',()=>{for(let y=0;y<water;y++)for(let x=0;x<cols;x++){
+let top=rows;let layerHit=-1;
+for(let l=0;l<4;l++){let n=x/cols;let peaks=Math.abs(Math.sin(n*(7+l*1.8)+l*1.9))*.14+Math.abs(Math.sin(n*(18+l*2)+l))*.055;let ridge=rows*((night?.65:.57)+l*.082-peaks*(1-l*.13));if(y>ridge){top=ridge;layerHit=l}}
+if(layerHit>=0&&y<water){let l=layerHit,noise=hash(x,y);let snow=l===0&&y-top<3+hash(x,1)*2;put(x,y,snow?'/':noise>.8?'/':noise>.45?':':'.',snow?'#a0b2b6':['#4e6879','#354f60','#233d4b','#142c37'][l])}
+}
+});
+for(let y=Math.floor(water);y<rows;y++)for(let x=0;x<cols;x++){
+if(y>=water){let depth=(y-water)/(rows-water);let wave=Math.sin(x*.16+t*.4+depth*21)+Math.sin(x*.052-t*.2);if(hash(x,y)>.53||wave>1.55)put(x+Math.sin(y*.4+t*.3)*1.8,y,wave>1.3?'~':'-',wave>1.3?'#47616a':depth<.2?'#2b4551':'#1b343e');if(Math.abs(x-cols*.76)<cols*.04*(depth+.3)&&hash(x,y)>.48)put(x,y,'~','#6b7976')}
+}
+for(let b=0;b<3;b++)for(let x=0;x<cols;x++){let y=rows*(.64+b*.045)+Math.sin(x*.04+t*.12+b)*1.5;if(hash(x,b)>.35)put(x,y,hash(x,b)>.7?'~':'.','#3b5159')}
+cacheLayer('trees',()=>{if(!night)for(let i=0;i<30;i++){let x=cols*(hash(i,25)>.5?.04+hash(i,21)*.14:.83+hash(i,21)*.15),base=rows*(.82+hash(i,22)*.15),height=5+hash(i,23)*13;for(let yy=0;yy<height;yy++){let width=(yy/height)*height*.34;for(let xx=-width;xx<=width;xx++)put(x+xx,base-height+yy,xx===0?'|':xx<0?'/':'\\','#091c23')}}});
+}
+function night(t){stars(t);cacheLayer('horizon',()=>{for(let x=0;x<cols;x++){let top=skyline(x,0)+rows*.17;for(let y=Math.floor(top);y<rows;y++){let c=hash(x,y)>.96?'~':'.';put(x,y,c,y>rows*.85?'#0c192a':'#14263a')}}});}
+
+function draw(){if(!cols)return;grid.fill('');const bg=scene==='pond'?'#081411':scene==='sky'?'#080f20':'#0a1520';if(fullRedraw){ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);oldGrid.fill('');oldColors.fill('')}if(scene==='pond')pond(time);else if(scene==='sky')night(time);else mountains(time);ctx.font=`${cw+1}px ui-monospace, SFMono-Regular, Consolas, monospace`;ctx.textBaseline='top';for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){let i=y*cols+x,c=grid[i],color=colors[i];if(!fullRedraw&&c===oldGrid[i]&&(!c||color===oldColors[i]))continue;ctx.fillStyle=bg;ctx.fillRect(x*cw,Math.floor(y*ch),cw,Math.floor((y+1)*ch)-Math.floor(y*ch));if(c){ctx.fillStyle=color;ctx.fillText(c,x*cw,y*ch)}oldGrid[i]=c;oldColors[i]=color}fullRedraw=false}
+
+function choose(s){if(!meta[s])return;scene=s;fullRedraw=true;layers={};document.documentElement.dataset.scene=s;document.getElementById('title').textContent=meta[s][0];document.getElementById('description').textContent=meta[s][1];canvas.setAttribute('aria-label',meta[s][2]);document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scene===s)));draw()}
+function pause(){paused=!paused;schedule();document.getElementById('pause').innerHTML=(paused?'Play':'Pause')+' <kbd>␣</kbd>';document.getElementById('pause').setAttribute('aria-label',paused?'Play animation':'Pause animation')}
+function clean(){document.body.classList.toggle('clean')}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>choose(b.dataset.scene));document.getElementById('pause').onclick=pause;document.getElementById('wallpaper').onclick=clean;document.getElementById('restore').onclick=clean;document.getElementById('speed').onclick=()=>{pace=pace===1?.5:pace===.5?1.5:1;document.getElementById('speed').textContent=`Pace ${pace}×`};document.getElementById('save').onclick=()=>{let a=document.createElement('a');a.download=`stillwater-${scene}.png`;a.href=canvas.toDataURL('image/png');a.click()};document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target.closest('button'))return;if(e.code==='Space'){e.preventDefault();pause()}if(e.key.toLowerCase()==='w')clean();if(e.key==='Escape')document.body.classList.remove('clean');if(['1','2','3'].includes(e.key))choose(['pond','sky','mountains'][+e.key-1])});
+if(new URLSearchParams(location.search).get('wallpaper')==='1')document.body.classList.add('clean');if(paused){paused=false;pause()}choose(scene);new ResizeObserver(resize).observe(canvas);document.addEventListener('visibilitychange',()=>{previous=0;schedule()});
+function schedule(){if(timer!==null){clearTimeout(timer);timer=null}previous=0;if(!paused&&!document.hidden)timer=setTimeout(frame,1000/12)}
+function frame(){timer=null;if(paused||document.hidden)return;const now=performance.now();if(previous)time+=Math.min((now-previous)/1000,.2)*pace;previous=now;const start=performance.now();draw();timer=setTimeout(frame,Math.max(1,1000/12-(performance.now()-start)))}
+schedule();
+
+window.stillwater={get scene(){return scene},get time(){return time},get paused(){return paused},choose,draw};
+})();
+</script>
+</body></html>
