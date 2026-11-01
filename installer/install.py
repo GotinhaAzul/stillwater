@@ -65,6 +65,7 @@ def install(payload):
         run(str(target / 'stillwater'), 'stop')
     for source, destination, mode in [(binary, target / 'stillwater-native', 0o755),
                                        (native / 'stillwater', target / 'stillwater', 0o755),
+                                       (native / 'stillwater_tui.py', target / 'stillwater_tui.py', 0o644),
                                        (payload / 'README.md', target / 'README.md', 0o644)]:
         temporary = destination.with_suffix('.installing')
         shutil.copyfile(source, temporary)
@@ -82,19 +83,25 @@ def install(payload):
         settings = {}
     if not isinstance(settings, dict):
         settings = {}
-    if settings.get('scene') not in ('pond', 'sky', 'mountains'):
+    if settings.get('scene') not in ('pond', 'sky', 'mountains', 'forest', 'rain', 'dunes'):
         settings['scene'] = 'pond'
     if not isinstance(settings.get('fps'), int) or not 1 <= settings['fps'] <= 30:
         settings['fps'] = 12
+    if settings.get('theme') not in ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight'):
+        settings['theme'] = 'midnight'
+    if type(settings.get('speed')) not in (float, int) or not .25 <= settings['speed'] <= 2:
+        settings['speed'] = 1.0
     settings['enabled'] = True
     settings_path.write_text(json.dumps(settings) + '\n')
     apps = home / '.local/share/applications'
     apps.mkdir(parents=True, exist_ok=True)
-    for slug, title in [('pond', 'Koi pond'), ('sky', 'Night sky'), ('mountains', 'Mountains'), ('stop', 'Restore background')]:
+    for slug, title in [('pond', 'Koi pond'), ('sky', 'Night sky'), ('mountains', 'Mountains'), ('forest', 'Firefly forest'), ('rain', 'Rain garden'), ('dunes', 'Quiet dunes'), ('stop', 'Restore background')]:
         (apps / f'stillwater-{slug}.desktop').write_text(
             '[Desktop Entry]\nType=Application\nName=Stillwater — ' + title +
             '\nComment=Native animated ASCII wallpaper\nExec="' + str(link).replace('"', '\\"') + '" ' + slug +
             '\nIcon=preferences-desktop-wallpaper\nTerminal=false\nStartupNotify=false\nCategories=Settings;DesktopSettings;\nKeywords=wallpaper;ASCII;ambient;stillwater;\n')
+    (apps / 'stillwater-settings.desktop').write_text(
+        '[Desktop Entry]\nType=Application\nName=Stillwater — Settings\nComment=Choose scenes, palettes and animation settings\nExec="' + str(link).replace('"', '\\"') + '" tui\nIcon=preferences-desktop-wallpaper\nTerminal=true\nCategories=Settings;DesktopSettings;\n')
     previous = autostart.read_text()
     backup = None
     if line not in previous:
@@ -115,7 +122,7 @@ def install(payload):
             settings_path.write_text(json.dumps(settings) + '\n')
             sys.exit('Hyprland reload failed; restored autostart and disabled the wallpaper.\n' + str(error))
         run(str(link), 'start')
-    print('Installed. Find Stillwater in your launcher, or run: stillwater pond | sky | mountains')
+    print('Installed. Find Stillwater in your launcher, or run: stillwater tui')
     print('Restore the original wallpaper: stillwater disable')
     if args.no_start:
         print('Desktop was not reloaded or started; run stillwater start in your Wayland session.')

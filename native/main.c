@@ -20,7 +20,8 @@ static struct wl_display *display;
 static struct wl_compositor *compositor;
 static struct wl_shm *shm;
 static struct zwlr_layer_shell_v1 *layer_shell;
-static int scene = 0, fps = 12;
+static int scene = 0, fps = 12, theme = 0;
+static double speed = 1;
 static int wake_pipe[2] = {-1, -1};
 static volatile sig_atomic_t running = 1, paused = 0, advance = 0;
 static double now(void) {
@@ -104,7 +105,7 @@ static int buffer_init(Buffer *b, Output *o) {
   b->previous = calloc((size_t)o->art.cols * o->art.rows, sizeof(Cell));
   if (!b->previous)
     return -1;
-  uint32_t bg = 0xff000000u | art_background(scene);
+  uint32_t bg = 0xff000000u | art_bg(&o->art);
   for (size_t i = 0; i < b->size / 4; i++)
     ((uint32_t *)b->data)[i] = bg;
   return 0;
@@ -131,6 +132,7 @@ static void output_reset(Output *o) {
     running = 0;
     return;
   }
+  art_set_theme(&o->art, theme);
   size_t bytes = (size_t)o->art.cols * o->art.rows * sizeof(Cell);
   o->presented = malloc(bytes);
   if (!o->presented) {
@@ -307,6 +309,14 @@ static int render(Output *o, double t) {
   wl_surface_commit(o->surface);
   return 0;
 }
+static int theme_id(const char *name) {
+  const char *names[] = {"midnight", "paper", "dawn",
+                         "mist",     "ember", "moonlight"};
+  for (int i = 0; i < ART_THEMES; i++)
+    if (!strcmp(name, names[i]))
+      return i;
+  return -1;
+}
 static int scene_id(const char *name) {
   if (!strcmp(name, "pond"))
     return 0;
@@ -314,6 +324,12 @@ static int scene_id(const char *name) {
     return 1;
   if (!strcmp(name, "mountains"))
     return 2;
+  if (!strcmp(name, "forest"))
+    return 3;
+  if (!strcmp(name, "rain"))
+    return 4;
+  if (!strcmp(name, "dunes"))
+    return 5;
   return -1;
 }
 int main(int argc, char **argv) {
@@ -323,6 +339,10 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--scene") && i + 1 < argc)
       scene = scene_id(argv[++i]);
+    else if (!strcmp(argv[i], "--theme") && i + 1 < argc)
+      theme = theme_id(argv[++i]);
+    else if (!strcmp(argv[i], "--speed") && i + 1 < argc)
+      speed = strtod(argv[++i], NULL);
     else if (!strcmp(argv[i], "--fps") && i + 1 < argc)
       fps = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--render") && i + 1 < argc)
@@ -336,14 +356,18 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--time") && i + 1 < argc)
       t = strtod(argv[++i], NULL);
     else {
-      fprintf(stderr, "Usage: stillwater-native [--scene pond|sky|mountains] "
-                      "[--fps 1..30] [--render file.png | --benchmark] "
-                      "[--width N --height N --time seconds]\n");
+      fprintf(stderr,
+              "Usage: stillwater-native [--scene "
+              "pond|sky|mountains|forest|rain|dunes] [--theme "
+              "midnight|paper|dawn|mist|ember|moonlight] [--speed 0.25..2] "
+              "[--fps 1..30] [--render file.png | --benchmark] "
+              "[--width N --height N --time seconds]\n");
       return 2;
     }
   }
-  if (scene < 0 || fps < 1 || fps > 30 || width < 1 || width > 16384 ||
-      height < 1 || height > 16384 || !isfinite(t))
+  if (scene < 0 || theme < 0 || !isfinite(speed) || speed < .25 || speed > 2 ||
+      fps < 1 || fps > 30 || width < 1 || width > 16384 || height < 1 ||
+      height > 16384 || !isfinite(t))
     return 2;
   if (png || bench) {
     Art art;
@@ -352,7 +376,8 @@ int main(int argc, char **argv) {
     cairo_surface_t *image =
         cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
     cairo_t *cr = cairo_create(image);
-    uint32_t bg = art_background(scene);
+    art_set_theme(&art, theme);
+    uint32_t bg = art_bg(&art);
     cairo_set_source_rgb(cr, ((bg >> 16) & 255) / 255.,
                          ((bg >> 8) & 255) / 255., (bg & 255) / 255.);
     cairo_paint(cr);
@@ -362,7 +387,7 @@ int main(int argc, char **argv) {
     double start = now();
     int n = bench ? 240 : 1;
     for (int i = 0; i < n; i++) {
-      art_frame(&art, t + i / (double)fps);
+      art_frame(&art, t + i * speed / (double)fps);
       cairo_surface_flush(image);
       if (art_blit(&art, cairo_image_surface_get_data(image),
                    cairo_image_surface_get_stride(image), 1, prev) < 0)
@@ -416,14 +441,14 @@ int main(int argc, char **argv) {
   while (running) {
     if (advance) {
       advance = 0;
-      scene = (scene + 1) % 3;
+      scene = (scene + 1) % ART_SCENES;
       for (int i = 0; i < MAX_OUTPUTS; i++)
         if (outputs[i].configured)
           output_reset(&outputs[i]);
     }
     double current = now();
     if (!paused)
-      clock += fmin(current - previous, .25);
+      clock += fmin(current - previous, .25) * speed;
     previous = current;
     bool ready = false;
     for (int i = 0; i < MAX_OUTPUTS; i++) {

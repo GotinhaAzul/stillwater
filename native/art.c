@@ -43,7 +43,45 @@ static void put(Art *a, double x, double y, char c, uint32_t color) {
     a->cells[iy * a->cols + ix] = (Cell){color, c};
 }
 uint32_t art_background(int scene) {
-  return scene == 0 ? 0x081411 : scene == 1 ? 0x080f20 : 0x0a1520;
+  static const uint32_t backgrounds[ART_SCENES] = {
+      0x081411, 0x080f20, 0x0a1520, 0x09150f, 0x0a1519, 0x18140e};
+  return backgrounds[scene >= 0 && scene < ART_SCENES ? scene : 0];
+}
+static const uint32_t theme_backgrounds[ART_THEMES] = {
+    0, 0xf6f0e3, 0xf7e7df, 0xeaf1f0, 0x1d100e, 0x10152a};
+static const uint32_t theme_inks[ART_THEMES] = {0,        0x283c32, 0x703c45,
+                                                0x204c58, 0xe7ad78, 0xa2b9dc};
+uint32_t art_bg(const Art *a) {
+  return a->theme ? theme_backgrounds[a->theme] : art_background(a->scene);
+}
+int art_set_theme(Art *a, int theme) {
+  if (theme < 0 || theme >= ART_THEMES)
+    return -1;
+  if (a->cache && theme != a->theme)
+    for (int i = 0; i < TILE_SLOTS; i++) {
+      free(a->cache->tiles[i].pixels);
+      a->cache->tiles[i] = (Tile){0};
+    }
+  a->theme = theme;
+  return 0;
+}
+static uint32_t art_color(const Art *a, uint32_t color) {
+  if (!a->theme)
+    return color;
+  double source[3] = {(color >> 16) & 255, (color >> 8) & 255, color & 255};
+  double luminance =
+      (source[0] * .2126 + source[1] * .7152 + source[2] * .0722) / 255.;
+  uint32_t bg = art_bg(a), ink = theme_inks[a->theme], result = 0;
+  double weight = a->theme <= 3 ? .22 + luminance * .70 : luminance * .95;
+  for (int channel = 0; channel < 3; channel++) {
+    int shift = 16 - channel * 8;
+    double base = (bg >> shift) & 255, target = (ink >> shift) & 255;
+    double chroma = (source[channel] - luminance * 255) * .65;
+    int value =
+        (int)round(clamp(base + (target - base) * weight + chroma, 0, 255));
+    result |= (uint32_t)value << shift;
+  }
+  return result;
 }
 static void ring(Art *a, double x, double y, double r, uint32_t color,
                  double phase) {
@@ -201,10 +239,123 @@ static void sky_base(Art *a) {
           y > a->rows * .85 ? 0x0c192a : 0x14263a);
   }
 }
+static void forest_base(Art *a) {
+  moon(a);
+  for (int layer = 0; layer < 3; layer++)
+    for (int i = 0; i < 18; i++) {
+      double x = hash(i + layer * 41, 18) * a->cols,
+             base = a->rows * (.64 + layer * .13),
+             height = a->rows * (.18 + hash(i, 19) * .25);
+      uint32_t color = layer == 0 ? 0x1b352c : layer == 1 ? 0x2a4a39 : 0x41634a;
+      for (int y = 0; y < height; y++) {
+        double width = (y / height) * height * .32;
+        for (double dx = -width; dx <= width; dx++)
+          if (fabs(dx) < 1 || hash(i + y, dx) > .12)
+            put(a, x + dx, base - height + y,
+                fabs(dx) < 1 ? '|'
+                : dx < 0     ? '/'
+                             : '\\',
+                color);
+      }
+    }
+  for (int x = 0; x < a->cols; x++)
+    for (int y = (int)(a->rows * .9); y < a->rows; y++)
+      if (hash(x, y) > .65)
+        put(a, x, y, hash(x, y) > .85 ? 'v' : '.', 0x304c33);
+}
+static void rain_base(Art *a) {
+  for (int i = 0; i < 22; i++) {
+    double x = hash(i, 50) * a->cols;
+    if (x > a->cols * .20 && x < a->cols * .82)
+      continue;
+    double top = a->rows * (.1 + hash(i, 51) * .35), base = a->rows * .87;
+    for (double y = top; y < base; y++) {
+      put(a, x, y, ((int)y % 8) == 0 ? '=' : '|', 0x355549);
+      if ((int)y % 7 == 0)
+        for (int k = 1; k < 6; k++) {
+          put(a, x - k, y - k * .3, '/', 0x4c6a51);
+          put(a, x + k, y - k * .3, '\\', 0x4c6a51);
+        }
+    }
+  }
+  for (int y = (int)(a->rows * .72); y < a->rows; y++)
+    for (int x = 0; x < a->cols; x++)
+      if (hash(x, y) > .88)
+        put(a, x, y, '-', 0x26454b);
+}
+static void dunes_base(Art *a) {
+  double radius = fmin(a->cols * .04, a->rows * .10);
+  for (double y = -radius; y <= radius; y++)
+    for (double x = -radius * 1.65; x <= radius * 1.65; x++)
+      if (x * x / (1.65 * 1.65) + y * y < radius * radius)
+        put(a, a->cols * .74 + x, a->rows * .22 + y,
+            hash(x, y) > .6 ? ':' : 'o', 0xc6a36a);
+  for (int layer = 0; layer < 4; layer++)
+    for (int x = 0; x < a->cols; x++) {
+      double n = (double)x / a->cols,
+             ridge = a->rows *
+                     (.47 + layer * .13 + sin(n * 5.5 + layer * 2) * .065 +
+                      sin(n * 12 + layer) * .015);
+      const uint32_t colors[] = {0x4b4231, 0x706047, 0x8b7450, 0xad8f62};
+      for (int y = (int)ridge; y < a->rows; y++) {
+        double noise = hash(x, y + layer * 13);
+        if (y - ridge < 1.2 || noise > .60)
+          put(a, x, y,
+              y - ridge < 1.2 ? '~'
+              : noise > .88   ? ':'
+                              : '.',
+              colors[layer]);
+        else
+          put(a, x, y, ' ', colors[layer]);
+      }
+    }
+  for (int i = 0; i < 9; i++) {
+    double x = a->cols * (.06 + hash(i, 61) * .12), y = a->rows * .91;
+    for (int k = 0; k < 3 + hash(i, 62) * 5; k++)
+      put(a, x + k * .3, y - k, '/', 0xb0a16b);
+  }
+}
+static void new_scene_frame(Art *a, double t) {
+  if (a->scene == 3) {
+    for (int i = 0; i < 32; i++) {
+      double x = a->cols * (.08 + hash(i, 70) * .84) + sin(t * .18 + i) * 2;
+      double y = a->rows * (.35 + hash(i, 71) * .48) + cos(t * .23 + i) * 1.4;
+      double light = .5 + .5 * sin(t * .8 + i * 1.7);
+      if (light > .45)
+        put(a, x, y, light > .87 ? '*' : '.',
+            light > .87 ? 0xc8c77f : 0x728451);
+    }
+    for (int i = 0; i < 45; i++)
+      put(a, fmod(i * 7.3 + t * .5, a->cols),
+          a->rows * .78 + sin(i * .4 + t * .15) * 2, '~', 0x2e473a);
+  } else if (a->scene == 4) {
+    for (int i = 0; i < 90; i++) {
+      double y = fmod(hash(i, 73) * a->rows + t * (4 + hash(i, 74) * 3),
+                      a->rows * .83);
+      double x = hash(i, 72) * a->cols - y * .16;
+      if (a->cols > 0) {
+        x = fmod(x + a->cols, a->cols);
+      }
+      for (int k = 0; k < 2 + (i % 3); k++)
+        put(a, x + k * .15, y - k, '/', i % 3 ? 0x355b64 : 0x618a8e);
+    }
+    for (int i = 0; i < 8; i++) {
+      double r = fmod(t * 2 + i * 2.3, 13);
+      ring(a, hash(i, 76) * a->cols, a->rows * (.76 + hash(i, 77) * .2), r,
+           r < 7 ? 0x55777c : 0x2b484e, i);
+    }
+  } else {
+    for (int i = 0; i < 65; i++) {
+      double x = fmod(hash(i, 80) * a->cols + t * (.6 + hash(i, 81)), a->cols);
+      double y = a->rows * (.48 + hash(i, 82) * .46) + sin(t * .2 + i) * .6;
+      put(a, x, y, i % 7 == 0 ? '~' : '.', i % 3 ? 0x8d7851 : 0xc5ab76);
+    }
+  }
+}
 int art_init(Art *a, int width, int height, int scene) {
   memset(a, 0, sizeof(*a));
   if (width < 1 || height < 1 || width > 16384 || height > 16384 || scene < 0 ||
-      scene > 2)
+      scene >= ART_SCENES)
     return -1;
   a->width = width;
   a->height = height;
@@ -222,6 +373,12 @@ int art_init(Art *a, int width, int height, int scene) {
   }
   if (scene == 0)
     pond_base(a);
+  else if (scene == 3)
+    forest_base(a);
+  else if (scene == 4)
+    rain_base(a);
+  else if (scene == 5)
+    dunes_base(a);
   else {
     moon(a);
     if (scene == 1)
@@ -235,7 +392,7 @@ int art_init(Art *a, int width, int height, int scene) {
     art_free(a);
     return -1;
   }
-  if (scene != 0) {
+  if (scene == 1 || scene == 2) {
     int count = (int)round(a->cols * a->rows * .065);
     a->cache->stars = calloc((size_t)count + 1, sizeof(Star));
     if (!a->cache->stars) {
@@ -285,6 +442,10 @@ void art_free(Art *a) {
 }
 void art_frame(Art *a, double t) {
   memcpy(a->cells, a->base, (size_t)a->cols * a->rows * sizeof(Cell));
+  if (a->scene >= 3) {
+    new_scene_frame(a, t);
+    return;
+  }
   if (a->scene == 0) {
     for (int i = 0; i < 7; i++) {
       double p = t * .28 + i * 3.7, x = a->cols * (.5 + .27 * sin(p * .36 + i)),
@@ -360,7 +521,7 @@ static void rgb(cairo_t *cr, uint32_t color) {
                        ((color >> 8) & 255) / 255., (color & 255) / 255.);
 }
 void art_paint(Art *a, cairo_t *cr, Cell *previous) {
-  uint32_t bg = art_background(a->scene);
+  uint32_t bg = art_bg(a);
   cairo_select_font_face(cr, "monospace", CAIRO_FONT_SLANT_NORMAL,
                          CAIRO_FONT_WEIGHT_NORMAL);
   cairo_set_font_size(cr, a->cw + 1);
@@ -377,7 +538,7 @@ void art_paint(Art *a, cairo_t *cr, Cell *previous) {
       cairo_fill(cr);
       if (c.c) {
         char text[2] = {c.c, 0};
-        rgb(cr, c.color);
+        rgb(cr, art_color(a, c.color));
         cairo_move_to(cr, px, py + a->cw);
         cairo_show_text(cr, text);
       }
@@ -406,12 +567,12 @@ static uint32_t *tile(Art *a, Cell cell, int scale) {
         (unsigned char *)pixels, CAIRO_FORMAT_RGB24, width, height, width * 4);
     cairo_t *cr = cairo_create(surface);
     cairo_scale(cr, scale, scale);
-    rgb(cr, art_background(a->scene));
+    rgb(cr, art_bg(a));
     cairo_paint(cr);
     cairo_select_font_face(cr, "monospace", CAIRO_FONT_SLANT_NORMAL,
                            CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, a->cw + 1);
-    rgb(cr, cell.color);
+    rgb(cr, art_color(a, cell.color));
     cairo_move_to(cr, 0, a->cw);
     char text[2] = {(char)cell.c, 0};
     cairo_show_text(cr, text);
@@ -443,7 +604,7 @@ int art_blit(Art *a, unsigned char *pixels, int stride, int scale,
     cache->tile_width = (int)a->cw * scale;
     cache->tile_height = (int)ceil(a->ch) * scale;
   }
-  uint32_t background = 0xff000000u | art_background(a->scene);
+  uint32_t background = 0xff000000u | art_bg(a);
   for (int y = 0; y < a->rows; y++) {
     int py = (int)floor(y * a->ch) * scale;
     int height = (int)floor((y + 1) * a->ch) * scale - py;

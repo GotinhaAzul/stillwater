@@ -14,3 +14,4 @@ python3 tests/check-wayland.py
 bash -n stillwater-install.sh
 bash stillwater-install.sh --check
 python3 tests/check-installer.py
+python3 tests/check-controller.py

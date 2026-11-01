@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Small controller for the native Stillwater Wayland wallpaper."""
+"""Controller and terminal launcher for the native Stillwater wallpaper."""
+from contextlib import contextmanager
 import fcntl
+import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -15,125 +18,209 @@ CONFIG = Path(os.environ.get('XDG_CONFIG_HOME', HOME / '.config')) / 'stillwater
 STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'stillwater'
 RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
 BINARY = INSTALL / 'stillwater-native'
-SCENES = ('pond', 'sky', 'mountains')
+SCENES = ('pond', 'sky', 'mountains', 'forest', 'rain', 'dunes')
+THEMES = ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight')
+DEFAULTS = {'scene': 'pond', 'theme': 'midnight', 'fps': 12, 'speed': 1.0, 'enabled': True}
 
 
 def read_json(path, default):
     try:
-        return json.loads(path.read_text())
+        value = json.loads(path.read_text())
+        return value if isinstance(value, dict) else default.copy()
     except (FileNotFoundError, ValueError):
         return default.copy()
 
 
 def write_json(path, value):
-    tmp = path.with_suffix('.tmp')
-    tmp.write_text(json.dumps(value) + '\n')
-    tmp.replace(path)
+    temporary = path.with_suffix('.tmp')
+    temporary.write_text(json.dumps(value) + '\n')
+    temporary.replace(path)
 
 
-def main():
-    CONFIG.mkdir(parents=True, exist_ok=True)
-    STATE.mkdir(parents=True, exist_ok=True)
-    if not RUNTIME.is_dir():
-        sys.exit('No desktop runtime. Run this inside your Wayland session.')
-    lock = (RUNTIME / 'stillwater.lock').open('a')
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    settings_path = CONFIG / 'settings.json'
-    process_path = RUNTIME / 'stillwater-process.json'
-    settings = read_json(settings_path, {'scene': 'pond', 'fps': 12, 'enabled': True})
-    record = read_json(process_path, {})
-    pid = record.get('pid')
-    alive = False
-    if isinstance(pid, int) and pid > 1:
-        try:
-            alive = Path(f'/proc/{pid}/exe').resolve(strict=True) == BINARY.resolve()
-        except (OSError, RuntimeError):
-            pass
+def validate(values):
+    if values.get('scene') not in SCENES:
+        raise ValueError('Choose a scene: ' + ', '.join(SCENES))
+    if values.get('theme') not in THEMES:
+        raise ValueError('Choose a palette: ' + ', '.join(THEMES))
+    if type(values.get('fps')) is not int or not 1 <= values['fps'] <= 30:
+        raise ValueError('Frame rate must be an integer from 1 to 30.')
+    if (type(values.get('speed')) not in (float, int) or
+            not math.isfinite(values['speed']) or not .25 <= values['speed'] <= 2):
+        raise ValueError('Animation speed must be from 0.25 to 2.')
+    if not isinstance(values.get('enabled'), bool):
+        raise ValueError('Wallpaper enabled must be true or false.')
 
-    def stop():
-        nonlocal alive
-        if alive:
-            os.kill(pid, signal.SIGTERM)
+
+class Controller:
+    def __init__(self):
+        CONFIG.mkdir(parents=True, exist_ok=True)
+        STATE.mkdir(parents=True, exist_ok=True)
+        if not RUNTIME.is_dir():
+            raise ValueError('No desktop runtime. Run inside your Wayland session.')
+        self.settings_path = CONFIG / 'settings.json'
+        self.process_path = RUNTIME / 'stillwater-process.json'
+
+    @contextmanager
+    def locked(self):
+        with (RUNTIME / 'stillwater.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
+
+    def settings(self):
+        result = DEFAULTS.copy()
+        for key, value in read_json(self.settings_path, DEFAULTS).items():
+            if key not in DEFAULTS:
+                continue
+            candidate = result | {key: value}
+            try:
+                validate(candidate)
+                result = candidate
+            except ValueError:
+                pass
+        return result
+
+    def process(self):
+        record = read_json(self.process_path, {})
+        pid = record.get('pid')
+        if isinstance(pid, int) and pid > 1:
+            try:
+                if (Path(f'/proc/{pid}/exe').resolve(strict=True) == BINARY.resolve()
+                        and not Path(f'/proc/{pid}/stat').read_text().split(') ')[1].startswith('Z')):
+                    return record
+            except (OSError, RuntimeError):
+                pass
+        return {}
+
+    def _stop(self):
+        record = self.process()
+        if record:
+            pid = record['pid']
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             for _ in range(40):
-                try:
-                    if Path(f'/proc/{pid}/stat').read_text().split(') ')[1].startswith('Z'):
-                        break
-                except FileNotFoundError:
+                if not self.process():
                     break
                 time.sleep(.025)
             else:
-                sys.exit('Wallpaper did not stop; inspect it before restarting.')
-        alive = False
-        write_json(process_path, {})
+                raise ValueError('Wallpaper did not stop; inspect it before restarting.')
+        write_json(self.process_path, {})
 
-    def start():
-        if alive:
-            print(f'Already running: {record["scene"]} (pid {pid})')
-            return
-        if not settings.get('enabled', True):
-            print('Disabled. Run stillwater enable to start again.')
-            return
+    def _start(self, settings, force=False, paused=False):
+        if not force and not settings['enabled']:
+            return 'Disabled. Use Enable to start the wallpaper.'
         env = os.environ.copy()
         env['XDG_RUNTIME_DIR'] = str(RUNTIME)
         if not env.get('WAYLAND_DISPLAY'):
-            sockets = [p for p in RUNTIME.glob('wayland-*') if p.is_socket()]
+            sockets = [path for path in RUNTIME.glob('wayland-*') if path.is_socket()]
             if len(sockets) != 1:
-                sys.exit('Cannot select the desktop. Set WAYLAND_DISPLAY and try again.')
+                raise ValueError('Cannot select the desktop. Set WAYLAND_DISPLAY and try again.')
             env['WAYLAND_DISPLAY'] = sockets[0].name
+        command = [str(BINARY), '--scene', settings['scene'], '--theme', settings['theme'],
+                   '--fps', str(settings['fps']), '--speed', str(settings['speed'])]
         with (STATE / 'wallpaper.log').open('a') as log:
-            child = subprocess.Popen([str(BINARY), '--scene', settings['scene'], '--fps', str(settings['fps'])],
-                                     env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                                     start_new_session=True, preexec_fn=lambda: os.nice(10))
+            child = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL,
+                                     stdout=log, stderr=log, start_new_session=True,
+                                     preexec_fn=lambda: os.nice(10))
         time.sleep(.2)
         if child.poll() is not None:
-            sys.exit(f'Wallpaper could not start. See {STATE / "wallpaper.log"}')
-        write_json(process_path, {'pid': child.pid, 'scene': settings['scene'], 'fps': settings['fps'], 'paused': False})
-        print(f'Running {settings["scene"]} at {settings["fps"]} fps (pid {child.pid})')
+            raise ValueError(f'Wallpaper could not start. See {STATE / "wallpaper.log"}')
+        if paused:
+            os.kill(child.pid, signal.SIGUSR1)
+        write_json(self.process_path, {'pid': child.pid, **settings, 'paused': paused})
+        return f'Running {settings["scene"]} / {settings["theme"]} / {settings["fps"]} fps'
 
-    command = sys.argv[1] if len(sys.argv) > 1 else 'status'
-    if command in SCENES:
-        settings.update(scene=command, enabled=True)
-        write_json(settings_path, settings)
-        stop()
-        start()
-    elif command == 'start':
-        start()
-    elif command == 'stop':
-        stop()
-        print('Stopped; original wallpaper is visible again.')
-    elif command in ('disable', 'enable'):
-        settings['enabled'] = command == 'enable'
-        write_json(settings_path, settings)
-        if settings['enabled']:
-            start()
-        else:
-            stop()
-            print('Disabled, including at next login.')
-    elif command == 'pause':
-        if not alive:
-            sys.exit('Wallpaper is not running.')
-        os.kill(pid, signal.SIGUSR1)
-        record['paused'] = not record.get('paused', False)
-        write_json(process_path, record)
-        print('Paused' if record['paused'] else 'Playing')
-    elif command == 'fps':
-        if len(sys.argv) != 3 or not sys.argv[2].isdigit() or not 1 <= int(sys.argv[2]) <= 30:
-            sys.exit('Usage: stillwater fps 1..30 (default 12; use 8 to save more power)')
-        settings['fps'] = int(sys.argv[2])
-        write_json(settings_path, settings)
-        if alive:
-            stop()
-            start()
-        else:
-            print(f'Saved {settings["fps"]} fps')
+    def update(self, changes, activate=False):
+        with self.locked():
+            settings = self.settings() | changes
+            if activate:
+                settings['enabled'] = True
+            validate(settings)
+            record = self.process()
+            write_json(self.settings_path, settings)
+            if record or activate:
+                self._stop()
+                return self._start(settings, force=True, paused=record.get('paused', False))
+            return 'Settings saved. Press S to enable the wallpaper.'
+
+    def action(self, command):
+        with self.locked():
+            settings, record = self.settings(), self.process()
+            if command == 'start':
+                return 'Already running' if record else self._start(settings)
+            if command in ('enable', 'disable'):
+                settings['enabled'] = command == 'enable'
+                write_json(self.settings_path, settings)
+                if command == 'enable':
+                    return 'Already running' if record else self._start(settings)
+                self._stop()
+                return 'Disabled. Static wallpaper restored, including after login.'
+            if command == 'stop':
+                self._stop()
+                return 'Stopped; static wallpaper restored.'
+            if command == 'pause':
+                if not record:
+                    raise ValueError('Wallpaper is stopped. Press S to enable it first.')
+                os.kill(record['pid'], signal.SIGUSR1)
+                record['paused'] = not record.get('paused', False)
+                write_json(self.process_path, record)
+                return 'Paused' if record['paused'] else 'Playing'
+            raise ValueError('Unknown wallpaper action.')
+
+    def status(self):
+        with self.locked():
+            return {'settings': self.settings(), 'process': self.process()}
+
+
+def main():
+    arguments = sys.argv[1:]
+    command = arguments[0] if arguments else ('tui' if sys.stdin.isatty() and sys.stdout.isatty() else 'status')
+    if command in ('help', '--help', '-h'):
+        print('Usage: stillwater [tui|status [--json]|list|SCENE|theme PALETTE|fps 1..30|speed 0.25..2|start|stop|pause|enable|disable]')
+        return
+    if command == 'list':
+        print('Scenes: ' + ', '.join(SCENES) + '\nPalettes: ' + ', '.join(THEMES))
+        return
+    controller = Controller()
+    if command == 'tui':
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            raise ValueError('The TUI needs a terminal. Use stillwater status or stillwater --help for scripting.')
+        spec = importlib.util.spec_from_file_location('stillwater_tui', INSTALL / 'stillwater_tui.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.run(controller, SCENES, THEMES)
+    elif command in SCENES and len(arguments) == 1:
+        print(controller.update({'scene': command}, activate=True))
+    elif command in ('theme', 'fps', 'speed'):
+        if len(arguments) != 2:
+            raise ValueError('Supply one value; see stillwater --help.')
+        value = arguments[1]
+        try:
+            value = int(value) if command == 'fps' else float(value) if command == 'speed' else value
+        except ValueError as error:
+            raise ValueError('Use an integer frame rate (1–30) or a numeric speed (0.25–2).') from error
+        print(controller.update({command: value}))
     elif command == 'status':
-        print(f'{record["scene"]} / {record["fps"]} fps / {"paused" if record.get("paused") else "playing"} / pid {pid}' if alive else 'Stopped')
+        if arguments[1:] not in ([], ['--json']):
+            raise ValueError('Usage: stillwater status [--json]')
+        status = controller.status()
+        if arguments[1:] == ['--json']:
+            print(json.dumps(status))
+        else:
+            record = status['process']
+            print(f'{record["scene"]} / {record.get("theme", "midnight")} / {record["fps"]} fps / '
+                  f'{"paused" if record.get("paused") else "playing"} / pid {record["pid"]}' if record else 'Stopped')
+    elif command in ('start', 'stop', 'enable', 'disable', 'pause') and len(arguments) == 1:
+        print(controller.action(command))
     else:
-        sys.exit('Usage: stillwater [pond|sky|mountains|start|stop|pause|status|enable|disable|fps 1..30]')
+        raise ValueError('Unknown command. Run stillwater --help.')
 
 
 if __name__ == '__main__':
     try:
         main()
+    except KeyboardInterrupt:
+        pass
     except (OSError, ValueError) as error:
         sys.exit(f'Stillwater: {error}')
