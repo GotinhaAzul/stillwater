@@ -1456,15 +1456,139 @@ static const uint32_t extra_bg[8][5] = {
  {0xb9c9c3,0xd5d6ba,0xdcc7a1,0x879b91,0x526f71},
  {0x142334,0x243c51,0x355269,0x243746,0x18222e}
 };
+// Branch tiers break up the silhouette; snow catches only upper edges.
 static void small_tree(Art *a,int x,int y,int h,uint32_t ink) {
- for(int r=0;r<h;r++) for(int c=-r/2;c<=r/2;c++) block(a,x+c,y+r,ink);
- fill_rect(a,x,y+h,x,y+h+2,ink);
+ fill_rect(a,x,y,x+1,y+h,ink);
+ for(int r=1;r<h;r++) {
+  int radius=(int)(r*.34)*(r%4==0?.68:1);
+  for(int c=-radius;c<=radius;c++) {
+   uint32_t shade=mix_color(ink,0x789399,(c<0?.12:.02));
+   block(a,x+c,y+r,shade);
+   if(a->scene==7 && r%4==1 && c<radius-1)
+    put(a,x+c,y+r,'-',0x879eae);
+  }
+ }
+}
+static void extra_detail(Art *a) {
+ int n=a->scene-6,w=a->cols,h=a->rows;
+ if(n==0) {
+  // Stratified rock, a tapering tower, gallery and lantern room.
+  for(int y=h*.7;y<h;y++)for(int x=0;x<w;x++)
+   if(y>h*.83-x*.12) {
+    double v=noise2(x*.12,y*.35);
+    glyph_tile(a,x,y,v>.6?'_':v<.3?'/':0,0x56616a,
+       mix_color(0x17232e,0x424753,v*.6));
+   }
+  int x=w*.76,y=h*.34,foot=h*.77;
+  for(int r=y;r<foot;r++) {
+   int radius=2+(r-y)/9;
+   for(int c=-radius;c<=radius;c++)block(a,x+c,r,
+    mix_color(0x65717b,0xd4c5b0,(double)(c+radius)/(2*radius+1)));
+   if((r-y)%8==3)put(a,x,r,'|',0x354352);
+  }
+  fill_rect(a,x-4,y-3,x+4,y-2,0x27313d);
+  for(int c=-3;c<=3;c++)glyph_tile(a,x+c,y-1,c%2?'|':' ',0x4a4241,0xffce88);
+  fill_rect(a,x-5,y,x+5,y,0x25333e);
+  for(int c=-4;c<=4;c++)put(a,x+c,y+1,'|',0x73808a);
+  for(int i=0;i<4;i++)fill_rect(a,x-i,y-6+i,x+i,y-6+i,0x33404c);
+ } else if(n==1) {
+  // Uneven snow banks, distant trees and a substantial log cabin.
+  for(int x=0;x<w;x++) {
+   int y=h*.82+sin(x*.043)*2;
+   fill_rect(a,x,y,x,h,mix_color(0x819cab,0xb1c3cc,(double)x/w));
+   if(x%4==0)put(a,x,y,'_',0xc2d0d7);
+  }
+  int x=w*.55,y=h*.62;
+  for(int r=0;r<8;r++)for(int c=-10;c<=10;c++)glyph_tile(a,x+c,y+r,r%2?'_':0,0x8a7262,c<0?0x5d4c47:0x493e3e);
+  for(int r=0;r<8;r++)for(int c=-r*2-1;c<=r*2+1;c++)block(a,x+c,y-8+r,r<5?0xbacbd5:0x8fa5b4);
+  fill_rect(a,x-16,y,x+16,y,0x526575);
+  fill_rect(a,x+6,y-10,x+8,y-5,0x665758);
+  fill_rect(a,x+6,y-10,x+9,y-10,0xc3d0d5);
+  fill_rect(a,x+5,y+2,x+8,y+7,0x302f34);
+  for(int r=1;r<5;r++)for(int c=-5;c<=0;c++)block(a,x+c,y+r,c==-3||r==3?0x71503e:0xffc477);
+  for(int i=0;i<12;i++)put(a,x+6+i*.7,y+9+i*.45,'_',0x718b9b);
+ } else if(n==2) {
+  for(int x=0;x<w;x++) {
+   int y=h*.88+sin(x*.08)*2;
+   for(int r=y;r<h;r++)glyph_tile(a,x,r,hash(x,r)>.86?'.':0,0x297779,mix_color(0x06151e,0x113c40,noise2(x*.1,r*.3)));
+  }
+  for(int i=0;i<9;i++)for(int r=0;r<4;r++)put(a,w*(.1+i*.1)+sin(r+i)*2,h*.9-r,'/',0x1e6b6a);
+ } else if(n==3 || n==6) {
+  // Branching, irregular crowns rather than a row of identical circles.
+  for(int i=0;i<8;i++) {
+   double x=w*(i%2?.88:.10)+(i/2)*w*(i%2?-.047:.047),y=h*(.18+(i/2)*.10);
+   for(int r=0;r<h*.38;r++) {
+    put(a,x+r*.13,y+r,'/',0x61564d);
+    if(r%3==0)for(int j=0;j<7;j++)put(a,x+r*.13+(i%2?-j:j),y+r-j*.4,'_',0x756357);
+   }
+   for(int r=-6;r<7;r++)for(int c=-15;c<=15;c++) {
+    double edge=noise2((c+i*13)*.24,(r+i*7)*.3);
+    if(c*c/12.+r*r<20+edge*25) {
+     uint32_t dark=n==3?0xa8798c:0x995136,light=n==3?0xf1c6d0:0xe1a454;
+     glyph_tile(a,x+c,y+r,hash(c+i,r)>.8?'*':0,mix_color(dark,light,.8),mix_color(dark,light,clamp(edge*.6+(6-r)*.035,0,1)));
+    }
+   }
+  }
+  if(n==3) {
+   for(int x=w*.35;x<w*.65;x++) {
+    int y=h*.68-3*sin((x-w*.35)/(w*.3)*3.14159);
+    fill_rect(a,x,y,x,y+1,0x8c8980);put(a,x,y-2,'_',0x707c73);
+    if(x%5==0)fill_rect(a,x,y-2,x,y,0x707c73);
+   }
+  } else {
+   for(int y=h*.72;y<h;y++)for(int x=w*.32;x<w*.84;x++) {
+    block(a,x,y,mix_color(0x526f71,0x87958b,(1.-(double)y/h)*2));
+    if(hash(x,y)>.89)put(a,x,y,'-',0x9ba398);
+   }
+  }
+ } else if(n==4 || n==5) {
+  for(int i=0;i<75;i++)if(hash(i,14)>.3)put(a,hash(i,8)*w,hash(i,9)*h*.42,'.',0x77919d);
+  if(n==4) {
+   for(int x=0;x<w;x++) {
+    int y=h*.6+sin(x*.04)*3;
+    fill_rect(a,x,y,x,h*.73,0x21363a);
+    if(x%9==0)small_tree(a,x,y-4,6,0x1c3033);
+    if(x%13==0){fill_rect(a,x,h*.79,x+1,h*.9,0x1a2229);put(a,x,h*.9,'/',0x33454a);}
+   }
+   fill_rect(a,0,h*.77,w,h*.77,0x4e5a60);
+  } else {
+   for(int x=0;x<w;x++) {
+    double peak=fabs(sin(x*.037)+.4*sin(x*.081));
+    int y=h*(.58-.14*peak);
+    fill_rect(a,x,y,x,h*.67,0x344e66);
+    for(int r=0;r<2+peak*2;r++)block(a,x,y+r,r?0x748e9f:0xa0b3ba);
+   }
+   for(int i=0;i<7;i++)small_tree(a,i*w/7,h*.6,7+i%3,0x122b39);
+   for(int i=0;i<80;i++)put(a,hash(i,31)*w,h*(.72+hash(i,32)*.27),'-',0x355569);
+  }
+ } else if(n==7) {
+  // Interior walls frame cool glass; a sleeping tabby rests on the sill.
+  for(int y=0;y<h;y++)for(int x=0;x<w;x++)if(x<w*.16||x>w*.84||y<h*.12||y>h*.84)
+   block(a,x,y,mix_color(0x302b32,0x514047,(double)y/h));
+  for(int i=0;i<15;i++) {
+   int x=w*.2+i*w*.04,y=h*(.48+hash(i,6)*.2);
+   fill_rect(a,x,y,x+3,h*.79,0x223546);
+   if(i%3==0)put(a,x+1,y+2,'.',0xb5a078);
+  }
+  fill_rect(a,w*.5,h*.12,w*.51,h*.8,0x786252);
+  fill_rect(a,w*.16,h*.45,w*.84,h*.46,0x786252);
+  int cx=w*.4,cy=h*.75;
+  for(int r=-3;r<=2;r++)for(int c=-9;c<=10;c++)if(c*c/11.+r*r<11)
+   block(a,cx+c,cy+r,mix_color(0x936e58,0xd4ad82,(3.-r)/6));
+  for(int r=-4;r<=1;r++)for(int c=-10;c<=-4;c++)block(a,cx+c,cy+r,0xc9a17b);
+  put(a,cx-10,cy-5,'^',0xe0b994);put(a,cx-4,cy-5,'^',0xe0b994);
+  put(a,cx-9,cy-1,'_',0x554639);put(a,cx-5,cy-1,'_',0x554639);
+  for(int i=0;i<4;i++)put(a,cx+i*3,cy-2,'/',0x795a48);
+  fill_rect(a,w*.69,h*.73,w*.75,h*.79,0xa66c54);
+  for(int i=0;i<5;i++)for(int r=0;r<7;r++)put(a,w*.72+sin(i*2)*r*.6,h*.73-r,'/',i%2?0x6b8c72:0x87a282);
+ }
 }
 static void extra_base(Art *a) {
  int n=a->scene-6,w=a->cols,h=a->rows;
  for(int y=0;y<h;y++) for(int x=0;x<w;x++) {
   double v=(double)y/h*4; int k=(int)v; if(k>3)k=3;
-  block(a,x,y,extra_bg[n][k+(v-k>bayer(x,y))]);
+  block(a,x,y,mix_color(extra_bg[n][k],extra_bg[n][k+1],
+        clamp(v-k+(bayer(x,y)-.5)*.035,0,1)));
  }
  if(n==0) {
   for(int y=h*2/3;y<h;y++) for(int x=0;x<w;x++) if(y>h*.83-x*.12) block(a,x,y,0x202b35);
@@ -1474,7 +1598,7 @@ static void extra_base(Art *a) {
   put(a,w*.24,h*.25,'v',0xd6b7a4);put(a,w*.3,h*.29,'v',0xd6b7a4);
  } else if(n==1) {
   fill_rect(a,0,h*.8,w,h,0x9aafbb);
-  for(int i=0;i<9;i++) small_tree(a,w*i/9,h*.48+(i%3),h*.3,0x193747);
+  for(int i=0;i<22;i++) small_tree(a,hash(i,42)*w,h*(.44+hash(i,43)*.14),h*(.18+hash(i,44)*.18),i%3?0x294653:0x193747);
   int x=w*.55,y=h*.62;
   fill_rect(a,x-8,y,x+8,y+7,0x584847);
   for(int r=0;r<6;r++) fill_rect(a,x-r*2,y-6+r,x+r*2,y-6+r,0xc0d0d5);
@@ -1485,7 +1609,7 @@ static void extra_base(Art *a) {
   for(int i=0;i<5;i++) {
    int x=(i%2?w*.85:w*.15)+i,y=h*.18+i%3;
    fill_rect(a,x,y,x+1,h*.77,0x605448);
-   for(int r=-5;r<6;r++)for(int c=-11;c<12;c++)if(c*c/4+r*r<35) block(a,x+c,y+r,n==3?(hash(c,r)>.5?0xd69da9:0xf0c5ca):(hash(c,r)>.5?0xb9653e:0xd69a49));
+
   }
   fill_rect(a,w*.64,h*.66,w*.64+2,h*.78,0x75847d);fill_rect(a,w*.64-1,h*.66,w*.64+3,h*.66,0x555f5a);
   put(a,w*.64+1,h*.69,'*',0xffdc9b);
@@ -1511,32 +1635,45 @@ static void extra_frame(Art *a,double t) {
   for(int y=0;y<h*.66;y++)for(int x=0;x<w*.74;x++)if(fabs((y-h*.34)/(w*.76-x)-aim)<.055) {
    Cell *c=&a->cells[y*w+x];c->bg=mix_color(c->bg,0xffdc99,.22);
   }
-  for(int i=0;i<45;i++)put(a,fmod(i*17+t*.6,w),h*.68+i%7,'~',0x68838e);
+  for(int i=0;i<45;i++)put(a,fmod(i*17+t*.6,w),h*(.6+hash(i,77)*.36),'~',0x536f80);
  } else if(n==1 || n==3 || n==6 || n==7) {
   for(int i=0;i<40;i++) {
-   double x=fmod(i*19+sin(t*.2+i)*3+w,w),y=fmod(i*7+t*(n==7?3:.7),h);
+   double x=fmod(hash(i,80)*w+sin(t*.2+i)*3+w,w),y=fmod(hash(i,81)*h+t*(n==7?3:.7),h);
    if(n!=7 || (x>w*.19 && x<w*.81 && y<h*.7))put(a,x,y,n==1?(i%3?'.':'*'):n==7?'|':',',n==1?0xd9e5ea:n==3?0xf6c5d1:n==6?0xe6a255:0x668499);
   }
-  if(n==1)for(int i=0;i<6;i++)put(a,w*.55+5+sin(t*.3+i),h*.62-9-i,'.',0x9cabb5);
+  if(n==1)for(int i=0;i<6;i++)put(a,w*.55+7+sin(t*.3+i*.6)*(1+i*.3),h*.62-11-i,'.',0x9cabb5);
   if(n==7)put(a,w*.49+sin(t*.5),h*.77,'~',0xc69c7f);
  } else if(n==2) {
-  for(int i=0;i<20;i++)put(a,i*w/20+sin(t*.3+i)*2,h-1-i%7,i%2?'|':'/',0x17666b);
+  for(int i=0;i<18;i++)for(int r=0;r<8+i%9;r++)put(a,i*w/18+sin(t*.25+i+r*.3)*2,h-1-r,r%3?'|':'/',r%2?0x19575c:0x25747a);
   for(int i=0;i<9;i++)put(a,(i*23)%w,h-fmod(t*.8+i*11,h),'o',0x327a83);
   for(int i=0;i<5;i++) {
    int x=w*(i+1)/6+sin(t*.2+i)*3,y=h*(.25+.1*(i%3))+sin(t*.3+i)*2;
    uint32_t c=mix_color(0x537b98,0xc897ec,.5+.5*sin(t*.7+i));
-   for(int r=-2;r<=0;r++)for(int d=-4;d<=4;d++)if(d*d+r*r*4<21)glyph_tile(a,x+d,y+r,'~',c,0x193746);
-   for(int d=-3;d<=3;d+=2)for(int r=1;r<5;r++)put(a,x+d+sin(t+r+i),y+r,'|',c);
+   for(int r=-5;r<9;r++)for(int d=-9;d<=9;d++) {
+    int px=x+d,py=y+r;
+    if(px<0||py<0||px>=w||py>=h)continue;
+    double halo=exp(-(d*d/32.+r*r/18.))*.24;
+    Cell *cell=&a->cells[py*w+px];cell->bg=mix_color(cell->bg,c,halo);
+   }
+   for(int r=-3;r<=0;r++)for(int d=-5;d<=5;d++)if(d*d+r*r*3<29)
+    glyph_tile(a,x+d,y+r,r==0?'_':hash(d,i)>.7?':':0,c,mix_color(0x123442,c,.22+.18*(r+3)/3.));
+   for(int d=-4;d<=4;d+=2)for(int r=1;r<7+(i%3);r++)put(a,x+d+sin(t*.5+r*.45+i),y+r,r%3?'|':':',mix_color(c,0x103239,r/11.));
   }
  } else if(n==4) {
-  double phase=fmod(t,65); if(phase<18)for(int i=0;i<4;i++) {
+  double phase=fmod(t+22,65); if(phase<18)for(int i=0;i<4;i++) {
    int x=(phase/18*(w+70))-70+i*16,y=h*.78-4;
-   fill_rect(a,x,y,x+13,y+3,0x53606a);for(int j=2;j<12;j+=3)put(a,x+j,y+1,'=',0xffd897);
+   fill_rect(a,x,y,x+13,y+3,0x344854);fill_rect(a,x,y,x+13,y,0x69747b);for(int j=2;j<12;j+=3)glyph_tile(a,x+j,y+1,'=',0xffd897,0xa87e54);put(a,x+2,y+4,'o',0x161d25);put(a,x+11,y+4,'o',0x161d25);
   }
  } else if(n==5) {
   for(int x=0;x<w;x++)for(int r=0;r<5;r++) {
-   int y=h*.24+sin(x*.045+t*.12)*4+r;
-   put(a,x,y,r%2?'/':':',mix_color(0x378f89,0x937aa9,r/5.));
+   int y=h*.23+sin(x*.025+t*.12)*4+sin(x*.07+t*.08)*2+r;
+   if(y>=0&&y<h) {
+    Cell *cell=&a->cells[y*w+x];
+    double fade=sin((r+1)*3.14159/7)*(.5+.5*sin(x*.035+t*.18));
+    uint32_t glow=mix_color(0x33786f,0x8173a7,(double)x/w);
+    cell->bg=mix_color(cell->bg,glow,fade*.38);
+    if(hash(x,r)>.3)put(a,x,y,r%2?'/':':',mix_color(cell->bg,0x96c4ac,fade*.55));
+   }
    if(r%2==0)put(a,x,h*.87-(y-h*.24)*.35,'-',0x3c6573);
   }
  }
@@ -1636,7 +1773,7 @@ int art_init(Art *a, int width, int height, int scene) {
   case 3: forest_base(a); break;
   case 4: rain_base(a); break;
   case 5: dunes_base(a); break;
-  default: extra_base(a); break;
+  default: extra_base(a); extra_detail(a); break;
   }
   memcpy(a->base, a->cells, bytes);
   a->cache = calloc(1, sizeof(*a->cache));
