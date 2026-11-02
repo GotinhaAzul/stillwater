@@ -87,7 +87,7 @@ def install(payload):
         settings['scene'] = 'pond'
     if not isinstance(settings.get('fps'), int) or not 1 <= settings['fps'] <= 30:
         settings['fps'] = 12
-    if settings.get('theme') not in ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight'):
+    if settings.get('theme') not in ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight', 'sage', 'sandstone', 'ocean', 'plum'):
         settings['theme'] = 'midnight'
     if type(settings.get('speed')) not in (float, int) or not .25 <= settings['speed'] <= 2:
         settings['speed'] = 1.0

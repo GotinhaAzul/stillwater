@@ -3,7 +3,7 @@
 #include <cairo.h>
 #include <stdint.h>
 #define ART_SCENES 6
-#define ART_THEMES 6
+#define ART_THEMES 10
 typedef struct {
   uint32_t color : 24;
   uint32_t c : 8;

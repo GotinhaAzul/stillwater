@@ -97,7 +97,7 @@ int main(void) {
           art_free(&a);
         }
   puts("PASS: cached tiles and partial damage match full Cairo rendering for 6 "
-       "scenes × 6 palettes × 3 sizes × 2 scales × 10 frames, including "
+       "scenes × 10 themes × 3 sizes × 2 scales × 10 frames, including "
        "alternating buffer "
        "reuse. Invalid input and unchanged damage checks passed.");
   return 0;

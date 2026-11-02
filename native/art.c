@@ -47,12 +47,26 @@ uint32_t art_background(int scene) {
       0x081411, 0x080f20, 0x0a1520, 0x09150f, 0x0a1519, 0x18140e};
   return backgrounds[scene >= 0 && scene < ART_SCENES ? scene : 0];
 }
-static const uint32_t theme_backgrounds[ART_THEMES] = {
-    0, 0xf6f0e3, 0xf7e7df, 0xeaf1f0, 0x1d100e, 0x10152a};
-static const uint32_t theme_inks[ART_THEMES] = {0,        0x283c32, 0x703c45,
-                                                0x204c58, 0xe7ad78, 0xa2b9dc};
+// Appearance belongs to the theme; scenes never change its light/dark identity.
+typedef struct {
+  uint32_t background, ink;
+  int light;
+  double chroma;
+} Theme;
+static const Theme themes[ART_THEMES] = {
+    {0, 0, 0, 1},                     // midnight: original scene colors
+    {0xf6f0e3, 0x283c32, 1, .25},     // paper
+    {0xf7e7df, 0x703c45, 1, .25},     // dawn
+    {0xeaf1f0, 0x204c58, 1, .25},     // mist
+    {0x1d100e, 0xe7ad78, 0, .65},     // ember
+    {0x10152a, 0xa2b9dc, 0, .65},     // moonlight
+    {0xe7eddf, 0x344d36, 1, .20},     // sage
+    {0xf1e3cc, 0x60452f, 1, .20},     // sandstone
+    {0x081d29, 0x80c9ce, 0, .40},     // ocean
+    {0x211425, 0xd4a6ce, 0, .40},     // plum
+};
 uint32_t art_bg(const Art *a) {
-  return a->theme ? theme_backgrounds[a->theme] : art_background(a->scene);
+  return a->theme ? themes[a->theme].background : art_background(a->scene);
 }
 int art_set_theme(Art *a, int theme) {
   if (theme < 0 || theme >= ART_THEMES)
@@ -71,12 +85,15 @@ static uint32_t art_color(const Art *a, uint32_t color) {
   double source[3] = {(color >> 16) & 255, (color >> 8) & 255, color & 255};
   double luminance =
       (source[0] * .2126 + source[1] * .7152 + source[2] * .0722) / 255.;
-  uint32_t bg = art_bg(a), ink = theme_inks[a->theme], result = 0;
-  double weight = a->theme <= 3 ? .22 + luminance * .70 : luminance * .95;
+  const Theme *palette = &themes[a->theme];
+  uint32_t bg = art_bg(a), ink = palette->ink, result = 0;
+  // Light themes use deeper ink, with less source-color spill into pale paper.
+  // Bright scene details become strong marks, while dim texture stays softer.
+  double weight = palette->light ? .30 + sqrt(luminance) * .65 : luminance * .95;
   for (int channel = 0; channel < 3; channel++) {
     int shift = 16 - channel * 8;
     double base = (bg >> shift) & 255, target = (ink >> shift) & 255;
-    double chroma = (source[channel] - luminance * 255) * .65;
+    double chroma = (source[channel] - luminance * 255) * palette->chroma;
     int value =
         (int)round(clamp(base + (target - base) * weight + chroma, 0, 255));
     result |= (uint32_t)value << shift;

@@ -11,9 +11,11 @@ DESCRIPTIONS = {
     'rain': 'Bamboo, drifting rain, and ripples in the garden.',
     'dunes': 'Warm sand, a low sun, and wind across the ridges.',
 }
-PALETTES = {'midnight': 'Original dark colors', 'paper': 'Warm ivory / light',
+PALETTES = {'midnight': 'Original scene colors / dark', 'paper': 'Warm ivory / light',
             'dawn': 'Soft peach / light', 'mist': 'Cool porcelain / light',
-            'ember': 'Copper / dark', 'moonlight': 'Blue silver / dark'}
+            'ember': 'Copper / dark', 'moonlight': 'Blue silver / dark',
+            'sage': 'Botanical green / light', 'sandstone': 'Warm sand / light',
+            'ocean': 'Deep teal / dark', 'plum': 'Soft violet / dark'}
 
 
 def run(controller, scenes, themes):
@@ -74,7 +76,7 @@ def run(controller, scenes, themes):
                 text(3, 3, 'A little movement. A little room to breathe.', muted)
                 text(5, 3, 'Wallpaper settings', accent)
                 values = [LABELS[draft['scene']], draft['theme'].title(), str(draft['fps']) + ' fps', f'{draft["speed"]:g}x speed']
-                names = ['Landscape', 'Color palette', 'Frame rate', 'Animation pace']
+                names = ['Landscape', 'Theme', 'Frame rate', 'Animation pace']
                 for index, (name, value) in enumerate(zip(names, values)):
                     marker = '>' if index == selected else ' '
                     text(7 + index * 2, 3, f'{marker} {name:<18} < {value} >', accent if index == selected else 0)

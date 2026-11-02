@@ -54,6 +54,11 @@ with tempfile.TemporaryDirectory(prefix='stillwater-controller-test-') as direct
         cli('pause')
         cli('theme', 'dawn')  # Restarts while preserving pause state.
         assert json.loads(cli('status', '--json'))['process']['paused']
+        for theme in ('sage', 'sandstone', 'ocean', 'plum'):
+            cli('theme', theme)
+            status = json.loads(cli('status', '--json'))
+            assert status['settings']['theme'] == theme
+            assert status['process']['theme'] == theme and status['process']['paused']
         cli('fps', '8')
         assert json.loads(cli('status', '--json'))['process']['fps'] == 8
         cli('disable')

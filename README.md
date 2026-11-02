@@ -36,7 +36,7 @@ stillwater tui
 
 Use **Up/Down** to select a setting and **Left/Right** to change it. **Enter** saves and applies. **S** enables the wallpaper, **P** pauses/resumes, **X** restores your static wallpaper and disables animation at login, and **Q** closes the interface. Closing the TUI leaves the wallpaper running independently.
 
-The interface controls the scene, color palette, frame rate and animation speed. Settings stay pending until applied. If animation is disabled, applying settings saves them without starting a wallpaper. The interface handles small terminals and does not hold the controller lock while open.
+The interface controls the scene, theme, frame rate and animation speed. Settings stay pending until applied. If animation is disabled, applying settings saves them without starting a wallpaper. The interface handles small terminals and does not hold the controller lock while open.
 
 | Landscape | What moves |
 |---|---|
@@ -49,7 +49,7 @@ The interface controls the scene, color palette, frame rate and animation speed.
 
 ![Firefly forest](docs/previews/forest.png)
 
-| Palette | Appearance |
+| Theme | Appearance |
 |---|---|
 | `midnight` | Original dark colors |
 | `paper` | Warm ivory, light |
@@ -57,8 +57,12 @@ The interface controls the scene, color palette, frame rate and animation speed.
 | `mist` | Cool porcelain, light |
 | `ember` | Dark copper |
 | `moonlight` | Dark blue and silver |
+| `sage` | Light botanical green |
+| `sandstone` | Light warm sand and brown ink |
+| `ocean` | Dark teal and sea glass |
+| `plum` | Dark violet and lilac |
 
-Every native scene supports every palette. Existing installations keep their scene and frame rate and default to midnight colors and normal speed.
+Each theme has a fixed light or dark appearance; choose a theme to change it. Light themes use deeper ink and restrained accent colors for readable detail. Every native scene supports every theme. Existing installations keep their scene and frame rate and default to midnight colors and normal speed.
 
 ![Quiet dunes in the paper palette](docs/previews/dunes-paper.png)
 

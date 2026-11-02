@@ -311,7 +311,8 @@ static int render(Output *o, double t) {
 }
 static int theme_id(const char *name) {
   const char *names[] = {"midnight", "paper", "dawn",
-                         "mist",     "ember", "moonlight"};
+                         "mist", "ember", "moonlight",
+                         "sage", "sandstone", "ocean", "plum"};
   for (int i = 0; i < ART_THEMES; i++)
     if (!strcmp(name, names[i]))
       return i;
@@ -359,7 +360,7 @@ int main(int argc, char **argv) {
       fprintf(stderr,
               "Usage: stillwater-native [--scene "
               "pond|sky|mountains|forest|rain|dunes] [--theme "
-              "midnight|paper|dawn|mist|ember|moonlight] [--speed 0.25..2] "
+              "midnight|paper|dawn|mist|ember|moonlight|sage|sandstone|ocean|plum] [--speed 0.25..2] "
               "[--fps 1..30] [--render file.png | --benchmark] "
               "[--width N --height N --time seconds]\n");
       return 2;

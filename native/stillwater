@@ -19,7 +19,7 @@ STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'stillwa
 RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
 BINARY = INSTALL / 'stillwater-native'
 SCENES = ('pond', 'sky', 'mountains', 'forest', 'rain', 'dunes')
-THEMES = ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight')
+THEMES = ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight', 'sage', 'sandstone', 'ocean', 'plum')
 DEFAULTS = {'scene': 'pond', 'theme': 'midnight', 'fps': 12, 'speed': 1.0, 'enabled': True}
 
 
@@ -41,7 +41,7 @@ def validate(values):
     if values.get('scene') not in SCENES:
         raise ValueError('Choose a scene: ' + ', '.join(SCENES))
     if values.get('theme') not in THEMES:
-        raise ValueError('Choose a palette: ' + ', '.join(THEMES))
+        raise ValueError('Choose a theme: ' + ', '.join(THEMES))
     if type(values.get('fps')) is not int or not 1 <= values['fps'] <= 30:
         raise ValueError('Frame rate must be an integer from 1 to 30.')
     if (type(values.get('speed')) not in (float, int) or
@@ -180,7 +180,7 @@ def main():
         print('Usage: stillwater [tui|status [--json]|list|SCENE|theme PALETTE|fps 1..30|speed 0.25..2|start|stop|pause|enable|disable]')
         return
     if command == 'list':
-        print('Scenes: ' + ', '.join(SCENES) + '\nPalettes: ' + ', '.join(THEMES))
+        print('Scenes: ' + ', '.join(SCENES) + '\nThemes: ' + ', '.join(THEMES))
         return
     controller = Controller()
     if command == 'tui':
