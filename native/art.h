@@ -2,7 +2,7 @@
 #define STILLWATER_ART_H
 #include <cairo.h>
 #include <stdint.h>
-#define ART_SCENES 6
+#define ART_SCENES 14
 // One character cell: an optional colored ground, an optional glyph, and its
 // ink. A zero bg paints the scene sky or water gradient; a zero glyph is a
 // solid ground block. Scenes use both to build layered, shaded artwork.

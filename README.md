@@ -1,6 +1,6 @@
 # Stillwater
 
-Six quiet, animated ASCII landscapes — four at night, two in daylight — and a terminal interface for making the desktop your own.
+Fourteen quiet, animated ASCII landscapes — spanning daylight, dusk and night — and a terminal interface for making the desktop your own.
 
 Stillwater runs as a small native Wayland wallpaper on Omarchy/Hyprland. The terminal interface uses Python’s standard library and adds no dependencies. Standalone HTML versions of the original three scenes work offline in a browser or a web wallpaper application.
 
@@ -129,3 +129,5 @@ Tests cover cached rasterization and partial damage against complete Cairo redra
 - Logs: `${XDG_STATE_HOME:-~/.local/state}/stillwater/wallpaper.log`
 
 The vendored [wlr-layer-shell protocol](native/wlr-layer-shell.xml) preserves its upstream copyright and license notice.
+
+Additional native scenes: `lighthouse`, `cabin`, `deep`, `blossom`, `train`, `aurora`, `autumn`, and `cat`. Select them through the terminal interface or `stillwater <scene>`.

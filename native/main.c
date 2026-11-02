@@ -319,6 +319,14 @@ static int scene_id(const char *name) {
     return 4;
   if (!strcmp(name, "dunes"))
     return 5;
+  if (!strcmp(name, "lighthouse")) return 6;
+  if (!strcmp(name, "cabin")) return 7;
+  if (!strcmp(name, "deep")) return 8;
+  if (!strcmp(name, "blossom")) return 9;
+  if (!strcmp(name, "train")) return 10;
+  if (!strcmp(name, "aurora")) return 11;
+  if (!strcmp(name, "autumn")) return 12;
+  if (!strcmp(name, "cat")) return 13;
   return -1;
 }
 int main(int argc, char **argv) {
@@ -345,7 +353,7 @@ int main(int argc, char **argv) {
     else {
       fprintf(stderr,
               "Usage: stillwater-native [--scene "
-              "pond|sky|mountains|forest|rain|dunes] [--speed 0.25..2] "
+              "pond|sky|mountains|forest|rain|dunes|lighthouse|cabin|deep|blossom|train|aurora|autumn|cat] [--speed 0.25..2] "
               "[--fps 1..30] [--render file.png | --benchmark] "
               "[--width N --height N --time seconds]\n");
       return 2;

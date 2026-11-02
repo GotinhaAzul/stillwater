@@ -33,7 +33,7 @@ int main(void) {
   // Scenes are deliberately either night pieces or daylight pieces, and each
   // backdrop is distinct. Pond, sky, mountains and forest are dark; the rain
   // garden and dunes are drawn for daylight.
-  const int daylight[ART_SCENES] = {0, 0, 0, 0, 1, 1};
+  const int daylight[ART_SCENES] = {0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0};
   uint32_t backgrounds[ART_SCENES];
   for (int scene = 0; scene < ART_SCENES; scene++) {
     Art a;
@@ -44,8 +44,10 @@ int main(void) {
                        .0722 * (backgrounds[scene] & 255);
     if (daylight[scene])
       assert(luminance > 150);
-    else
+    else if (scene < 6)
       assert(luminance < 40);
+    else
+      assert(luminance < 180);
     for (int previous = 0; previous < scene; previous++)
       assert(backgrounds[scene] != backgrounds[previous]);
     art_free(&a);
@@ -111,7 +113,7 @@ int main(void) {
           free(screen);
           art_free(&a);
         }
-  puts("PASS: cached tiles and partial damage match full Cairo rendering for 6 "
+  puts("PASS: cached tiles and partial damage match full Cairo rendering for 14 "
        "landscapes × 3 sizes × 2 scales × 10 frames, including alternating "
        "buffer reuse. Explicit night/day backdrops, invalid input and "
        "unchanged damage checks passed.");

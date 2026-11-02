@@ -21,6 +21,9 @@ BINARY = INSTALL / 'stillwater-native'
 SCENES = ('pond', 'sky', 'mountains', 'forest', 'rain', 'dunes')
 APPEARANCE = {'pond': 'night', 'sky': 'night', 'mountains': 'night',
               'forest': 'night', 'rain': 'day', 'dunes': 'day'}
+APPEARANCE.update({'lighthouse': 'night', 'cabin': 'night', 'deep': 'night', 'blossom': 'day', 'train': 'night', 'aurora': 'night', 'autumn': 'day', 'cat': 'night'})
+SCENES += ('lighthouse', 'cabin', 'deep', 'blossom', 'train', 'aurora', 'autumn', 'cat')
+
 DEFAULTS = {'scene': 'pond', 'fps': 12, 'speed': 1.0, 'enabled': True}
 
 

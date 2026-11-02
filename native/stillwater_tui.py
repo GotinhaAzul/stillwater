@@ -14,6 +14,10 @@ DESCRIPTIONS = {
     'dunes': 'Sunlit dunes, dry grasses, and a slow camel caravan.',
 }
 
+APPEARANCE.update({'lighthouse': 'night', 'cabin': 'night', 'deep': 'night', 'blossom': 'day', 'train': 'night', 'aurora': 'night', 'autumn': 'day', 'cat': 'night'})
+LABELS.update({'lighthouse': 'Lighthouse coast', 'cabin': 'Snowy cabin', 'deep': 'Bioluminescent deep', 'blossom': 'Cherry blossom path', 'train': 'Night train', 'aurora': 'Aurora lake', 'autumn': 'Autumn maple', 'cat': 'Windowsill cat'})
+DESCRIPTIONS.update({'lighthouse': 'Lighthouse coast', 'cabin': 'Snowy cabin', 'deep': 'Bioluminescent deep', 'blossom': 'Cherry blossom path', 'train': 'Night train', 'aurora': 'Aurora lake', 'autumn': 'Autumn maple', 'cat': 'Windowsill cat'})
+
 
 def run(controller, scenes):
     def interface(screen):

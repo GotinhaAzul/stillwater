@@ -89,7 +89,9 @@ static uint32_t ramp_color(const uint32_t *colors, int count, double value,
 
 // Scene backgrounds are vertical gradients. Pond, sky, rain and dunes use
 // palettes of their own; mountains and forest keep one Midnight colour.
+static const uint32_t extra_bg[8][5];
 static const uint32_t *scene_bg(const Art *a) {
+  if (a->scene >= 6) return extra_bg[a->scene-6];
   switch (a->scene) {
   case 0: return pond_colors.bg;
   case 1: return sky_colors.bg;
@@ -1442,6 +1444,104 @@ static void dunes_frame(Art *a, double t) {
 }
 
 // ---------------------------------------------------------------------------
+
+// Additional landscapes share drawing primitives, but keep distinct compositions.
+static const uint32_t extra_bg[8][5] = {
+ {0x171b40,0x493455,0xc47759,0x233d50,0x101f32},
+ {0x101d32,0x263f56,0x46617a,0x657e91,0x9aafbb},
+ {0x02080f,0x04131f,0x072632,0x08323b,0x03181f},
+ {0xadc9ca,0xc7d8d0,0xe4dace,0x9aa995,0x657d71},
+ {0x090f23,0x172139,0x29344a,0x182a30,0x101d25},
+ {0x080f28,0x14233c,0x243d52,0x31475e,0x142c40},
+ {0xb9c9c3,0xd5d6ba,0xdcc7a1,0x879b91,0x526f71},
+ {0x142334,0x243c51,0x355269,0x243746,0x18222e}
+};
+static void small_tree(Art *a,int x,int y,int h,uint32_t ink) {
+ for(int r=0;r<h;r++) for(int c=-r/2;c<=r/2;c++) block(a,x+c,y+r,ink);
+ fill_rect(a,x,y+h,x,y+h+2,ink);
+}
+static void extra_base(Art *a) {
+ int n=a->scene-6,w=a->cols,h=a->rows;
+ for(int y=0;y<h;y++) for(int x=0;x<w;x++) {
+  double v=(double)y/h*4; int k=(int)v; if(k>3)k=3;
+  block(a,x,y,extra_bg[n][k+(v-k>bayer(x,y))]);
+ }
+ if(n==0) {
+  for(int y=h*2/3;y<h;y++) for(int x=0;x<w;x++) if(y>h*.83-x*.12) block(a,x,y,0x202b35);
+  int x=w*.76,y=h*.34;
+  fill_rect(a,x-2,y,x+2,h*.78,0xb1aaa0);fill_rect(a,x-3,y-2,x+3,y,0x253443);
+  fill_rect(a,x-2,y-1,x+2,y-1,0xffd58b);
+  put(a,w*.24,h*.25,'v',0xd6b7a4);put(a,w*.3,h*.29,'v',0xd6b7a4);
+ } else if(n==1) {
+  fill_rect(a,0,h*.8,w,h,0x9aafbb);
+  for(int i=0;i<9;i++) small_tree(a,w*i/9,h*.48+(i%3),h*.3,0x193747);
+  int x=w*.55,y=h*.62;
+  fill_rect(a,x-8,y,x+8,y+7,0x584847);
+  for(int r=0;r<6;r++) fill_rect(a,x-r*2,y-6+r,x+r*2,y-6+r,0xc0d0d5);
+  fill_rect(a,x+4,y-8,x+5,y-3,0x635458);
+  fill_rect(a,x-2,y+2,x+1,y+4,0xffcb79);
+ } else if(n==3 || n==6) {
+  for(int y=h*.58;y<h;y++) for(int x=0;x<w;x++) if(abs(x-w/2)<(y-h*.5)*.7) block(a,x,y,0xc4bbaa);
+  for(int i=0;i<5;i++) {
+   int x=(i%2?w*.85:w*.15)+i,y=h*.18+i%3;
+   fill_rect(a,x,y,x+1,h*.77,0x605448);
+   for(int r=-5;r<6;r++)for(int c=-11;c<12;c++)if(c*c/4+r*r<35) block(a,x+c,y+r,n==3?(hash(c,r)>.5?0xd69da9:0xf0c5ca):(hash(c,r)>.5?0xb9653e:0xd69a49));
+  }
+  fill_rect(a,w*.64,h*.66,w*.64+2,h*.78,0x75847d);fill_rect(a,w*.64-1,h*.66,w*.64+3,h*.66,0x555f5a);
+  put(a,w*.64+1,h*.69,'*',0xffdc9b);
+ } else if(n==4) {
+  for(int x=0;x<w;x++)fill_rect(a,x,h*.64+sin(x*.06)*3,x,h,0x15282b);
+  fill_rect(a,0,h*.78,w,h*.78,0x647075);
+ } else if(n==5) {
+  for(int x=0;x<w;x++)fill_rect(a,x,h*.55+sin(x*.055)*4,x,h*.68,0x708b99);
+ } else if(n==7) {
+  fill_rect(a,w*.16,h*.12,w*.18,h*.8,0x685950);fill_rect(a,w*.82,h*.12,w*.84,h*.8,0x685950);
+  fill_rect(a,w*.16,h*.8,w*.84,h*.84,0x9c8069);
+  fill_rect(a,w*.5,h*.12,w*.51,h*.8,0x685950);
+  for(int y=-3;y<=3;y++)for(int x=-9;x<=9;x++)if(x*x/9+y*y<12)block(a,w*.43+x,h*.75+y,0xb78d71);
+  put(a,w*.36,h*.72,'^',0xe2b793);put(a,w*.39,h*.72,'^',0xe2b793);
+  fill_rect(a,w*.7,h*.73,w*.74,h*.79,0xb77d62);
+  for(int i=0;i<6;i++)put(a,w*.72+sin(i)*3,h*.72-i,'/',0x719b83);
+ }
+}
+static void extra_frame(Art *a,double t) {
+ int n=a->scene-6,w=a->cols,h=a->rows;
+ if(n==0) {
+  double aim=sin(t*.16)*.9;
+  for(int y=0;y<h*.66;y++)for(int x=0;x<w*.74;x++)if(fabs((y-h*.34)/(w*.76-x)-aim)<.055) {
+   Cell *c=&a->cells[y*w+x];c->bg=mix_color(c->bg,0xffdc99,.22);
+  }
+  for(int i=0;i<45;i++)put(a,fmod(i*17+t*.6,w),h*.68+i%7,'~',0x68838e);
+ } else if(n==1 || n==3 || n==6 || n==7) {
+  for(int i=0;i<40;i++) {
+   double x=fmod(i*19+sin(t*.2+i)*3+w,w),y=fmod(i*7+t*(n==7?3:.7),h);
+   if(n!=7 || (x>w*.19 && x<w*.81 && y<h*.7))put(a,x,y,n==1?(i%3?'.':'*'):n==7?'|':',',n==1?0xd9e5ea:n==3?0xf6c5d1:n==6?0xe6a255:0x668499);
+  }
+  if(n==1)for(int i=0;i<6;i++)put(a,w*.55+5+sin(t*.3+i),h*.62-9-i,'.',0x9cabb5);
+  if(n==7)put(a,w*.49+sin(t*.5),h*.77,'~',0xc69c7f);
+ } else if(n==2) {
+  for(int i=0;i<20;i++)put(a,i*w/20+sin(t*.3+i)*2,h-1-i%7,i%2?'|':'/',0x17666b);
+  for(int i=0;i<9;i++)put(a,(i*23)%w,h-fmod(t*.8+i*11,h),'o',0x327a83);
+  for(int i=0;i<5;i++) {
+   int x=w*(i+1)/6+sin(t*.2+i)*3,y=h*(.25+.1*(i%3))+sin(t*.3+i)*2;
+   uint32_t c=mix_color(0x537b98,0xc897ec,.5+.5*sin(t*.7+i));
+   for(int r=-2;r<=0;r++)for(int d=-4;d<=4;d++)if(d*d+r*r*4<21)glyph_tile(a,x+d,y+r,'~',c,0x193746);
+   for(int d=-3;d<=3;d+=2)for(int r=1;r<5;r++)put(a,x+d+sin(t+r+i),y+r,'|',c);
+  }
+ } else if(n==4) {
+  double phase=fmod(t,65); if(phase<18)for(int i=0;i<4;i++) {
+   int x=(phase/18*(w+70))-70+i*16,y=h*.78-4;
+   fill_rect(a,x,y,x+13,y+3,0x53606a);for(int j=2;j<12;j+=3)put(a,x+j,y+1,'=',0xffd897);
+  }
+ } else if(n==5) {
+  for(int x=0;x<w;x++)for(int r=0;r<5;r++) {
+   int y=h*.24+sin(x*.045+t*.12)*4+r;
+   put(a,x,y,r%2?'/':':',mix_color(0x378f89,0x937aa9,r/5.));
+   if(r%2==0)put(a,x,h*.87-(y-h*.24)*.35,'-',0x3c6573);
+  }
+ }
+}
+
 // Frame animation for the original forest landscape.
 // ---------------------------------------------------------------------------
 static void forest_frame(Art *a, double t) {
@@ -1535,7 +1635,8 @@ int art_init(Art *a, int width, int height, int scene) {
   case 2: moon(a); mountain_base(a); break;
   case 3: forest_base(a); break;
   case 4: rain_base(a); break;
-  default: dunes_base(a); break;
+  case 5: dunes_base(a); break;
+  default: extra_base(a); break;
   }
   memcpy(a->base, a->cells, bytes);
   a->cache = calloc(1, sizeof(*a->cache));
@@ -1597,7 +1698,8 @@ void art_frame(Art *a, double t) {
   case 2: mountain_frame(a, t); break;
   case 3: forest_frame(a, t); break;
   case 4: rain_frame(a, t); break;
-  default: dunes_frame(a, t); break;
+  case 5: dunes_frame(a, t); break;
+  default: extra_frame(a, t); break;
   }
 }
 
