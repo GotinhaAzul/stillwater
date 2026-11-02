@@ -5,7 +5,7 @@ root=Path(__file__).resolve().parent
 native=root.parent/'native'
 archive=BytesIO()
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
- for f in ['main.c','art.c','art.h','test-art.c','wlr-layer-shell.xml','build.sh','stillwater','stillwater_tui.py','build/stillwater-native']:
+ for f in ['main.c','art.c','art.h','scene-palettes.h','test-art.c','wlr-layer-shell.xml','build.sh','stillwater','stillwater_tui.py','build/stillwater-native']:
   z.write(native/f,'native/'+f)
  z.write(root/'install.py','install.py')
  z.write(root/'README.md','README.md')

@@ -62,9 +62,9 @@ The interface controls the scene, theme, frame rate and animation speed. Setting
 | `ocean` | Dark teal and sea glass |
 | `plum` | Dark violet and lilac |
 
-Each theme has a fixed light or dark appearance; choose a theme to change it. Light themes use deeper ink and restrained accent colors for readable detail. Every native scene supports every theme. Existing installations keep their scene and frame rate and default to midnight colors and normal speed.
+Each theme has a fixed light or dark appearance; choose a theme to change it. Every landscape has its own hand-selected material palette in each theme: copper koi and green pads, blue sky silhouettes, slate mountain layers and pine trees, green forest depths, blue rain and bamboo, and ochre dune ridges. Light appearances preserve these material colors and give foreground layers stronger ink. Every native scene supports every theme. Existing installations keep their scene and frame rate and default to midnight colors and normal speed.
 
-![Quiet dunes in the paper palette](docs/previews/dunes-paper.png)
+![Custom light palettes for all six landscapes](docs/previews/light-landscapes.png)
 
 ![Rain garden in the mist palette](docs/previews/rain-mist.png)
 

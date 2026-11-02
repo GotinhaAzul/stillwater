@@ -11,8 +11,8 @@ DESCRIPTIONS = {
     'rain': 'Bamboo, drifting rain, and ripples in the garden.',
     'dunes': 'Warm sand, a low sun, and wind across the ridges.',
 }
-PALETTES = {'midnight': 'Original scene colors / dark', 'paper': 'Warm ivory / light',
-            'dawn': 'Soft peach / light', 'mist': 'Cool porcelain / light',
+PALETTES = {'midnight': 'Original scene colors / dark', 'paper': 'Natural pigments / light',
+            'dawn': 'Warm morning colors / light', 'mist': 'Cool atmospheric colors / light',
             'ember': 'Copper / dark', 'moonlight': 'Blue silver / dark',
             'sage': 'Botanical green / light', 'sandstone': 'Warm sand / light',
             'ocean': 'Deep teal / dark', 'plum': 'Soft violet / dark'}

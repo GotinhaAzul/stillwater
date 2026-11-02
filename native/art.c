@@ -47,26 +47,15 @@ uint32_t art_background(int scene) {
       0x081411, 0x080f20, 0x0a1520, 0x09150f, 0x0a1519, 0x18140e};
   return backgrounds[scene >= 0 && scene < ART_SCENES ? scene : 0];
 }
-// Appearance belongs to the theme; scenes never change its light/dark identity.
+// Material roles are independent: a bright fish is not a pale mountain ridge.
 typedef struct {
-  uint32_t background, ink;
-  int light;
-  double chroma;
-} Theme;
-static const Theme themes[ART_THEMES] = {
-    {0, 0, 0, 1},                     // midnight: original scene colors
-    {0xf6f0e3, 0x283c32, 1, .25},     // paper
-    {0xf7e7df, 0x703c45, 1, .25},     // dawn
-    {0xeaf1f0, 0x204c58, 1, .25},     // mist
-    {0x1d100e, 0xe7ad78, 0, .65},     // ember
-    {0x10152a, 0xa2b9dc, 0, .65},     // moonlight
-    {0xe7eddf, 0x344d36, 1, .20},     // sage
-    {0xf1e3cc, 0x60452f, 1, .20},     // sandstone
-    {0x081d29, 0x80c9ce, 0, .40},     // ocean
-    {0x211425, 0xd4a6ce, 0, .40},     // plum
-};
+  uint32_t background, texture, distant, middle, foreground;
+  uint32_t accent, highlight, foliage, shimmer;
+} ScenePalette;
+#include "scene-palettes.h"
 uint32_t art_bg(const Art *a) {
-  return a->theme ? themes[a->theme].background : art_background(a->scene);
+  return a->theme ? scene_palettes[a->theme][a->scene].background
+                  : art_background(a->scene);
 }
 int art_set_theme(Art *a, int theme) {
   if (theme < 0 || theme >= ART_THEMES)
@@ -79,26 +68,101 @@ int art_set_theme(Art *a, int theme) {
   a->theme = theme;
   return 0;
 }
+static uint32_t palette_blend(uint32_t from, uint32_t to, double amount) {
+  uint32_t result = 0;
+  amount = clamp(amount, 0, 1);
+  for (int shift = 0; shift <= 16; shift += 8) {
+    double first = (from >> shift) & 255, last = (to >> shift) & 255;
+    result |= (uint32_t)round(first + (last - first) * amount) << shift;
+  }
+  return result;
+}
 static uint32_t art_color(const Art *a, uint32_t color) {
   if (!a->theme)
     return color;
-  double source[3] = {(color >> 16) & 255, (color >> 8) & 255, color & 255};
-  double luminance =
-      (source[0] * .2126 + source[1] * .7152 + source[2] * .0722) / 255.;
-  const Theme *palette = &themes[a->theme];
-  uint32_t bg = art_bg(a), ink = palette->ink, result = 0;
-  // Light themes use deeper ink, with less source-color spill into pale paper.
-  // Bright scene details become strong marks, while dim texture stays softer.
-  double weight = palette->light ? .30 + sqrt(luminance) * .65 : luminance * .95;
-  for (int channel = 0; channel < 3; channel++) {
-    int shift = 16 - channel * 8;
-    double base = (bg >> shift) & 255, target = (ink >> shift) & 255;
-    double chroma = (source[channel] - luminance * 255) * palette->chroma;
-    int value =
-        (int)round(clamp(base + (target - base) * weight + chroma, 0, 255));
-    result |= (uint32_t)value << shift;
+  const ScenePalette *p = &scene_palettes[a->theme][a->scene];
+  switch (a->scene) {
+  case 0: // Pond: water, reeds, lily pads, flowers, and copper koi.
+    switch (color) {
+    case 0x17372f: return p->texture;
+    case 0x214138: return p->distant;
+    case 0x2e5140: return p->foreground;
+    case 0x56734c: return p->foliage;
+    case 0x3a5839: return p->middle;
+    case 0xe1b6a2: case 0xf4d9be: case 0xc48584: case 0xa97076:
+      return p->shimmer;
+    case 0xb56c48: case 0xda9864: case 0x7f4034: return p->accent;
+    case 0xd4cbb0: case 0xf3dcb1: return p->highlight;
+    case 0x5c6b52: return p->foreground;
+    case 0xb28461: return p->accent;
+    default: // Ring colors encode their age; keep the ripple fade.
+      return palette_blend(p->texture, p->distant,
+                           (((color >> 8) & 255) - 44.) / 17.);
+    }
+  case 1: // Sky: haze, two hill silhouettes, moon and stars.
+    switch (color) {
+    case 0x293e57: return p->texture;
+    case 0x667c96: return p->distant;
+    case 0x14263a: return p->middle;
+    case 0x0c192a: return p->foreground;
+    case 0xd1d5b4: return p->accent;
+    case 0x40596c: return p->shimmer;
+    case 0xe0e5d6: return p->highlight;
+    default: // Star green encodes its animated brightness.
+      return palette_blend(p->distant, p->highlight,
+                           (((color >> 8) & 255) - 61.) / 90.);
+    }
+  case 2: // Mountains: receding ridges, snow, shoreline pines and lake.
+    switch (color) {
+    case 0x4e6879: return p->distant;
+    case 0x354f60: return p->middle;
+    case 0x233d4b: return p->foreground;
+    case 0x142c37: return p->foliage;
+    case 0x091c23: return p->foliage;
+    case 0xa0b2b6: return p->highlight;
+    case 0xd1d5b4: return p->accent;
+    case 0x1b343e: case 0x2b4551: return p->texture;
+    case 0x47616a: case 0x6b7976: case 0x3b5159: return p->shimmer;
+    case 0xe0e5d6: return p->highlight;
+    case 0x40596c: return p->shimmer;
+    default:
+      return palette_blend(p->distant, p->highlight,
+                           (((color >> 8) & 255) - 61.) / 90.);
+    }
+  case 3: // Forest: distant trees soften; foreground trees gain depth.
+    switch (color) {
+    case 0x1b352c: return p->distant;
+    case 0x2a4a39: return p->middle;
+    case 0x41634a: return p->foreground;
+    case 0x304c33: return p->foliage;
+    case 0x2e473a: return p->texture;
+    case 0xc8c77f: return p->accent;
+    case 0x728451: return p->shimmer;
+    default: return p->highlight;
+    }
+  case 4: // Rain: green bamboo remains separate from blue rain and water.
+    switch (color) {
+    case 0x355549: return p->foreground;
+    case 0x4c6a51: return p->foliage;
+    case 0x26454b: return p->texture;
+    case 0x355b64: return p->distant;
+    case 0x618a8e: return p->highlight;
+    case 0x55777c: return p->shimmer;
+    default: return p->middle;
+    }
+  case 5: // Dunes: warm sand layers, terracotta sun, and olive grasses.
+    switch (color) {
+    case 0x4b4231: return p->distant;
+    case 0x706047: return p->middle;
+    case 0x8b7450: return p->foreground;
+    case 0xad8f62: return p->highlight;
+    case 0xc6a36a: return p->accent;
+    case 0xb0a16b: return p->foliage;
+    case 0xc5ab76: return p->shimmer;
+    default: return p->texture;
+    }
   }
-  return result;
+  return color;
 }
 static void ring(Art *a, double x, double y, double r, uint32_t color,
                  double phase) {
@@ -533,6 +597,11 @@ void art_frame(Art *a, double t) {
               hash(x, b) > .7 ? '~' : '.', 0x3b5159);
   }
 }
+static cairo_font_weight_t art_font_weight(const Art *a) {
+  // Thin strokes lose coverage against pale paper at wallpaper scale.
+  static const int light[ART_THEMES] = {0, 1, 1, 1, 0, 0, 1, 1, 0, 0};
+  return light[a->theme] ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL;
+}
 static void rgb(cairo_t *cr, uint32_t color) {
   cairo_set_source_rgb(cr, ((color >> 16) & 255) / 255.,
                        ((color >> 8) & 255) / 255., (color & 255) / 255.);
@@ -540,7 +609,7 @@ static void rgb(cairo_t *cr, uint32_t color) {
 void art_paint(Art *a, cairo_t *cr, Cell *previous) {
   uint32_t bg = art_bg(a);
   cairo_select_font_face(cr, "monospace", CAIRO_FONT_SLANT_NORMAL,
-                         CAIRO_FONT_WEIGHT_NORMAL);
+                         art_font_weight(a));
   cairo_set_font_size(cr, a->cw + 1);
   for (int y = 0; y < a->rows; y++)
     for (int x = 0; x < a->cols; x++) {
@@ -587,7 +656,7 @@ static uint32_t *tile(Art *a, Cell cell, int scale) {
     rgb(cr, art_bg(a));
     cairo_paint(cr);
     cairo_select_font_face(cr, "monospace", CAIRO_FONT_SLANT_NORMAL,
-                           CAIRO_FONT_WEIGHT_NORMAL);
+                           art_font_weight(a));
     cairo_set_font_size(cr, a->cw + 1);
     rgb(cr, art_color(a, cell.color));
     cairo_move_to(cr, 0, a->cw);

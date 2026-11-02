@@ -6,7 +6,7 @@ Run the self-contained installer in a terminal on your Omarchy desktop:
 bash ~/Downloads/stillwater-install.sh
 ```
 
-It installs six native Wayland landscapes, ten themes (five light and five dark), and a dependency-free terminal interface; enables autostart; and starts the koi pond. It requires no root access or downloads. The package includes source and can rebuild itself if the bundled Linux binary is incompatible and the normal C/Wayland/Cairo development tools are installed.
+It installs six native Wayland landscapes, ten themes (five light and five dark), each with custom palettes for all six landscapes, and a dependency-free terminal interface; enables autostart; and starts the koi pond. It requires no root access or downloads. The package includes source and can rebuild itself if the bundled Linux binary is incompatible and the normal C/Wayland/Cairo development tools are installed.
 
 You can inspect the installer first, or verify its payload without changing your desktop:
 
