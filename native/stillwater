@@ -19,6 +19,8 @@ STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'stillwa
 RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
 BINARY = INSTALL / 'stillwater-native'
 SCENES = ('pond', 'sky', 'mountains', 'forest', 'rain', 'dunes')
+APPEARANCE = {'pond': 'night', 'sky': 'night', 'mountains': 'night',
+              'forest': 'night', 'rain': 'day', 'dunes': 'day'}
 DEFAULTS = {'scene': 'pond', 'fps': 12, 'speed': 1.0, 'enabled': True}
 
 
@@ -177,7 +179,8 @@ def main():
         print('Usage: stillwater [tui|status [--json]|list|SCENE|fps 1..30|speed 0.25..2|start|stop|pause|enable|disable]')
         return
     if command == 'list':
-        print('Scenes: ' + ', '.join(SCENES))
+        print('Landscapes: ' + ', '.join(
+            f'{name} ({APPEARANCE[name]})' for name in SCENES))
         return
     controller = Controller()
     if command == 'tui':

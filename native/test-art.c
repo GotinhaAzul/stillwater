@@ -19,26 +19,33 @@ static void apply_damage(void *data, int x, int y, int w, int h) {
            d->source + row * d->stride + x * d->scale * 4,
            (size_t)w * d->scale * 4);
 }
-static void fill(cairo_t *cr, const Art *a) {
-  uint32_t c = art_bg(a);
-  cairo_set_source_rgb(cr, ((c >> 16) & 255) / 255., ((c >> 8) & 255) / 255.,
-                       (c & 255) / 255.);
-  cairo_paint(cr);
+static void fill(cairo_surface_t *surface, Art *a, int scale) {
+  cairo_surface_flush(surface);
+  art_background(a, cairo_image_surface_get_data(surface),
+                 cairo_image_surface_get_stride(surface), scale);
+  cairo_surface_mark_dirty(surface);
 }
 int main(void) {
-  assert(sizeof(Cell) == 4);
+  assert(sizeof(Cell) == 8);
   Art invalid;
   assert(art_init(&invalid, 0, 1080, 0) == -1);
   assert(art_init(&invalid, 1920, 1080, ART_SCENES) == -1);
+  // Scenes are deliberately either night pieces or daylight pieces, and each
+  // backdrop is distinct. Pond, sky, mountains and forest are dark; the rain
+  // garden and dunes are drawn for daylight.
+  const int daylight[ART_SCENES] = {0, 0, 0, 0, 1, 1};
   uint32_t backgrounds[ART_SCENES];
   for (int scene = 0; scene < ART_SCENES; scene++) {
     Art a;
     assert(art_init(&a, 390, 844, scene) == 0);
     backgrounds[scene] = art_bg(&a);
-    // Every landscape uses a dark ground; light appearances are retired.
-    assert(((backgrounds[scene] >> 16) & 255) < 64);
-    assert(((backgrounds[scene] >> 8) & 255) < 64);
-    assert((backgrounds[scene] & 255) < 64);
+    double luminance = .2126 * ((backgrounds[scene] >> 16) & 255) +
+                       .7152 * ((backgrounds[scene] >> 8) & 255) +
+                       .0722 * (backgrounds[scene] & 255);
+    if (daylight[scene])
+      assert(luminance > 150);
+    else
+      assert(luminance < 40);
     for (int previous = 0; previous < scene; previous++)
       assert(backgrounds[scene] != backgrounds[previous]);
     art_free(&a);
@@ -59,9 +66,7 @@ int main(void) {
           for (int b = 0; b < 2; b++) {
             images[b] = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
                                                    w * scale, h * scale);
-            cairo_t *cr = cairo_create(images[b]);
-            fill(cr, &a);
-            cairo_destroy(cr);
+            fill(images[b], &a, scale);
           }
           int stride = cairo_image_surface_get_stride(images[0]);
           size_t pixel_bytes = (size_t)stride * h * scale;
@@ -82,8 +87,8 @@ int main(void) {
             assert(art_damage(&a, presented, apply_damage, &damage) == 0);
             cairo_surface_t *fresh = cairo_image_surface_create(
                 CAIRO_FORMAT_RGB24, w * scale, h * scale);
+            fill(fresh, &a, scale);
             cairo_t *cr = cairo_create(fresh);
-            fill(cr, &a);
             cairo_scale(cr, scale, scale);
             art_paint(&a, cr, NULL);
             cairo_surface_flush(fresh);
@@ -107,8 +112,8 @@ int main(void) {
           art_free(&a);
         }
   puts("PASS: cached tiles and partial damage match full Cairo rendering for 6 "
-       "landscapes × 3 sizes × 2 scales × 10 frames, including "
-       "alternating buffer "
-       "reuse. Invalid input and unchanged damage checks passed.");
+       "landscapes × 3 sizes × 2 scales × 10 frames, including alternating "
+       "buffer reuse. Explicit night/day backdrops, invalid input and "
+       "unchanged damage checks passed.");
   return 0;
 }

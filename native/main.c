@@ -105,9 +105,7 @@ static int buffer_init(Buffer *b, Output *o) {
   b->previous = calloc((size_t)o->art.cols * o->art.rows, sizeof(Cell));
   if (!b->previous)
     return -1;
-  uint32_t bg = 0xff000000u | art_bg(&o->art);
-  for (size_t i = 0; i < b->size / 4; i++)
-    ((uint32_t *)b->data)[i] = bg;
+  art_background(&o->art, b->data, o->width * o->scale * 4, o->scale);
   return 0;
 }
 static void frame_done(void *data, struct wl_callback *cb, uint32_t ms) {
@@ -364,10 +362,9 @@ int main(int argc, char **argv) {
     cairo_surface_t *image =
         cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
     cairo_t *cr = cairo_create(image);
-    uint32_t bg = art_bg(&art);
-    cairo_set_source_rgb(cr, ((bg >> 16) & 255) / 255.,
-                         ((bg >> 8) & 255) / 255., (bg & 255) / 255.);
-    cairo_paint(cr);
+    art_background(&art, cairo_image_surface_get_data(image),
+                   cairo_image_surface_get_stride(image), 1);
+    cairo_surface_mark_dirty(image);
     Cell *prev = calloc((size_t)art.cols * art.rows, sizeof(Cell));
     if (!prev)
       return 1;

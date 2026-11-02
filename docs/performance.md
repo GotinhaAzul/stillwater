@@ -1,17 +1,42 @@
 # Renderer performance
 
-The optimized renderer uses cached colored glyph tiles, precomputed star positions and water data, four-byte character cells, and partial compositor damage. The frame rate and all three scenes are preserved.
+Stillwater draws into an eight-byte character cell: a 24-bit ground colour, a
+24-bit ink colour and a glyph. Grounds let scenes paint solid planes for dunes,
+water, walls and foliage; inks draw texture and detail on top. Tiles are
+rasterised once per (ground, ink, glyph, scale) combination and blitted into
+shared memory. Static scenery, sprite stamps and the vertical backdrop gradient
+are part of the cached base image, so a frame only repaints cells that moved.
 
-Paired 1920×1080 benchmarks, median of seven runs per scene, 240 frames per run:
+Shading uses ordered dithering inside a narrow seam between neighbouring tones.
+Large faces therefore stay flat and readable instead of turning into speckled
+gradients, while curved ridges and foliage still shade smoothly.
 
-| Scene | First native renderer | Optimized renderer | Less drawing time |
+Current reference measurements on one Linux workstation, 1920×1080, 240 frames
+per run, median of five runs:
+
+| Landscape | Appearance | Drawing time | Est. one-core use at 12 fps |
 |---|---:|---:|---:|
-| Koi pond | 0.396 ms/frame | 0.145 ms/frame | 63.4% |
-| Night sky | 0.464 ms/frame | 0.107 ms/frame | 76.9% |
-| Mountains | 0.685 ms/frame | 0.147 ms/frame | 78.5% |
+| Koi pond | Night | 0.571 ms/frame | 0.69% |
+| Night sky | Night | 0.523 ms/frame | 0.63% |
+| Mountain lake | Night | 0.127 ms/frame | 0.15% |
+| Firefly forest | Night | 0.076 ms/frame | 0.09% |
+| Rain garden | Day | 0.150 ms/frame | 0.18% |
+| Quiet dunes | Day | 0.091 ms/frame | 0.11% |
 
-These measurements cover renderer drawing time, not total compositor CPU/GPU work. They are reference measurements from one Linux workstation, not a performance guarantee.
+The pond and sky do more work because koi, stars and water are painted
+every frame; mountains, forest and the rain garden keep most scenery in the
+cached base layer. Peak resident memory
+in the render path measured 20–22 MB at 1080p, including the Cairo surface used
+by `--render` and `--benchmark`.
 
-Across 2,400 sampled frames per scene, reported damage averaged 1.19–1.46% of a 1080p screen per frame. The first native implementation reported the entire screen as damaged. This is changed area sent to the compositor; compositor savings were not measured.
+These numbers cover renderer drawing time, not total compositor CPU/GPU work.
+They are reference measurements from one workstation, not a performance
+guarantee. Hardware, output count, resolution, scaling and compositor policy all
+matter.
 
-Thirty comparison PNGs across three scenes, two resolutions, and five animation timestamps were byte-identical to the first native renderer. Memory use remained broadly similar; the improvement mainly reduces drawing and screen update work.
+The renderer still reports damage only for cells that changed since the last
+presented frame. The Wayland fixture and renderer tests rebuild the image from
+those partial updates and alternating shared-memory buffers, and compare it
+byte-for-byte with a complete redraw at three sizes and both integer scales.
+That is the property to preserve when changing a scene: animated detail should
+touch a small number of cells, and static scenery belongs in the base layer.

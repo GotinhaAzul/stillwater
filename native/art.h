@@ -3,8 +3,12 @@
 #include <cairo.h>
 #include <stdint.h>
 #define ART_SCENES 6
+// One character cell: an optional colored ground, an optional glyph, and its
+// ink. A zero bg paints the scene sky or water gradient; a zero glyph is a
+// solid ground block. Scenes use both to build layered, shaded artwork.
 typedef struct {
-  uint32_t color : 24;
+  uint32_t bg : 24;
+  uint32_t fg : 24;
   uint32_t c : 8;
 } Cell;
 typedef struct {
@@ -14,7 +18,10 @@ typedef struct {
   struct ArtCache *cache;
 } Art;
 int art_init(Art *a, int width, int height, int scene);
+// Mid-scene backdrop color; the full vertical gradient is painted by
+// art_background() and by every cell the renderer touches.
 uint32_t art_bg(const Art *a);
+void art_background(Art *a, unsigned char *pixels, int stride, int scale);
 void art_free(Art *a);
 void art_frame(Art *a, double time);
 void art_paint(Art *a, cairo_t *cr, Cell *previous);

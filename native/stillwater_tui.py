@@ -3,13 +3,15 @@ import curses
 
 LABELS = {'pond': 'Koi pond', 'sky': 'Night sky', 'mountains': 'Mountains',
           'forest': 'Firefly forest', 'rain': 'Rain garden', 'dunes': 'Quiet dunes'}
+APPEARANCE = {'pond': 'night', 'sky': 'night', 'mountains': 'night',
+              'forest': 'night', 'rain': 'day', 'dunes': 'day'}
 DESCRIPTIONS = {
-    'pond': 'Copper koi, lily pads, and circles in the water.',
-    'sky': 'A crescent moon, twinkling stars, and passing meteors.',
+    'pond': 'Moonlit koi, lily pads, reeds, and a stone lantern.',
+    'sky': 'A full moon, the Milky Way, a sailboat, and a dark headland.',
     'mountains': 'Layered peaks, slow mist, and a moonlit lake.',
     'forest': 'Evergreen silhouettes and wandering fireflies.',
-    'rain': 'Bamboo, drifting rain, and ripples in the garden.',
-    'dunes': 'Warm sand, a low sun, and wind across the ridges.',
+    'rain': 'A rainy garden with a moon gate, paving, and hydrangeas.',
+    'dunes': 'Sunlit dunes, dry grasses, and a slow camel caravan.',
 }
 
 
@@ -76,12 +78,15 @@ def run(controller, scenes):
                     marker = '>' if index == selected else ' '
                     text(7 + index * 2, 3, f'{marker} {name:<18} < {value} >', accent if index == selected else 0)
                 if height >= 25:
-                    text(16, 5, DESCRIPTIONS[draft['scene']])
-                    text(19, 5, 'At login: ' + ('enabled' if status['settings']['enabled'] else 'disabled'))
+                    text(16, 5, LABELS[draft['scene']] + ' / ' + APPEARANCE[draft['scene']])
+                    text(17, 5, DESCRIPTIONS[draft['scene']])
+                    text(20, 5, 'At login: ' + ('enabled' if status['settings']['enabled'] else 'disabled'))
                 if height >= 25 and width >= 88:
                     x = 55
                     for index, name in enumerate(scenes):
-                        text(7 + index, x, ('* ' if name == draft['scene'] else '  ') + LABELS[name], accent if name == draft['scene'] else 0)
+                        text(7 + index, x, ('* ' if name == draft['scene'] else '  ') +
+                             LABELS[name] + ' - ' + APPEARANCE[name],
+                             accent if name == draft['scene'] else 0)
                 text(height - 4, 3, message)
                 text(height - 2, 3, 'Up/Down select  Left/Right edit  Enter apply')
                 text(height - 1, 3, 'S enable  P pause  X static/off  Q quit')

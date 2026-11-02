@@ -1,10 +1,10 @@
 # Stillwater
 
-Six quiet, animated ASCII landscapes with their own colors, and a terminal interface for making the desktop your own.
+Six quiet, animated ASCII landscapes — four at night, two in daylight — and a terminal interface for making the desktop your own.
 
 Stillwater runs as a small native Wayland wallpaper on Omarchy/Hyprland. The terminal interface uses Python’s standard library and adds no dependencies. Standalone HTML versions of the original three scenes work offline in a browser or a web wallpaper application.
 
-![Copper koi in a dark ASCII pond](docs/previews/pond.png)
+![Copper koi under a full moon in a dark ASCII pond](docs/previews/pond.png)
 
 ## Install on Omarchy
 
@@ -38,18 +38,20 @@ Use **Up/Down** to select a setting and **Left/Right** to change it. **Enter** s
 
 The interface controls the landscape, frame rate and animation speed. Settings stay pending until applied. If animation is disabled, applying settings saves them without starting a wallpaper. The interface handles small terminals and does not hold the controller lock while open.
 
-| Landscape | What moves |
-|---|---|
-| `pond` — Koi pond | Copper koi and expanding water rings |
-| `sky` — Night sky | Twinkling stars and passing meteors |
-| `mountains` — Mountain lake | Slow mist and moonlit water |
-| `forest` — Firefly forest | Fireflies among evergreen silhouettes |
-| `rain` — Rain garden | Falling rain and ripples beside bamboo |
-| `dunes` — Quiet dunes | Wind and drifting sand beneath a low sun |
+| Landscape | Appearance | What moves |
+|---|---|---|
+| `pond` — Koi pond | Night | Koi, moon glitter, lily pads, a lit stone lantern |
+| `sky` — Night sky | Night | Stars, the Milky Way, meteors, a sailboat on the swell |
+| `mountains` — Mountain lake | Night | Slow mist and moonlit water |
+| `forest` — Firefly forest | Night | Fireflies among evergreen silhouettes |
+| `rain` — Rain garden | Day | Rain, puddles, bamboo, a moon gate and hydrangeas |
+| `dunes` — Quiet dunes | Day | Sunlit dune faces, drifting sand, a camel caravan |
 
 ![Firefly forest](docs/previews/forest.png)
 
-Each landscape has one fixed palette: a deep teal koi pond, a blue night sky, a Midnight mountain lake, a dark green forest, a Midnight rain garden, and Midnight dunes. All landscapes use dark backgrounds. Pick a landscape to get its complete appearance. Older theme preferences are retired automatically; your landscape and playback settings are preserved.
+![Rain garden in daylight](docs/previews/rain.png)
+
+Each landscape is drawn for one appearance rather than recoloured from another. The koi pond, night sky, mountain lake and firefly forest are night pieces with their own moonlight and deep grounds; the rain garden and quiet dunes are daylight pieces built around pale mist, warm sand and a high sun. Scenery is composed from solid character grounds, hand-stamped sprites and ordered-dither shading, so surfaces stay calm while ridges, water and foliage keep their shape. Older theme preferences are retired automatically; your landscape and playback settings are preserved.
 
 ![The six landscape palettes](docs/previews/landscapes.png)
 
@@ -79,13 +81,11 @@ One low-priority native C process, with no browser, video decoder, network acces
 - Compositor frame callbacks pace output; pause blocks on events without polling.
 - The wallpaper is click-through, sits below windows, and handles output hotplugging and integer display scaling.
 
-Reference live measurements at 1360×768 and 12 fps were approximately **16 MB RAM** and **0.5–1% of one CPU core**. Paused and display-off samples used zero CPU ticks. Hardware, output count, resolution, scaling, and compositor behavior affect resource use; compositor work is separate from these process measurements.
-
-The optimized renderer reduced 1080p drawing time by 63–79% against the first native implementation while preserving comparison images byte-for-byte. Details and limits are in [performance notes](docs/performance.md).
+At 1920×1080 the six scenes draw in 0.08–0.57 ms per frame, or about 0.1–0.7% of one CPU core at 12 fps; peak renderer memory measured 20–22 MB. Pause blocks without polling and display-off periods use no frames. Hardware, output count, resolution, scaling, and compositor behavior affect resource use; compositor work is separate from these process measurements. Details and limits are in [performance notes](docs/performance.md).
 
 ## Browser versions
 
-Open [web/index.html](web/index.html) locally to explore all three scenes. `web/pond.html`, `web/sky.html`, and `web/mountains.html` open with controls hidden. Each file is self-contained and works offline.
+Open [web/index.html](web/index.html) locally to explore the browser demo. `web/pond.html`, `web/sky.html`, and `web/mountains.html` open with controls hidden. Each file is self-contained and works offline. The browser pages keep a separate three-scene renderer; the native wallpaper is the full six-landscape collection.
 
 Press **W** for controls, **Space** to pause, or **1–3** to switch scenes. The interface includes speed adjustment and PNG export. Reduced-motion preferences start the scene paused. Use a wallpaper application that supports local HTML for animated desktop use; an ordinary image wallpaper setting supports the exported PNG stills.
 
