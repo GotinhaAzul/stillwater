@@ -49,7 +49,7 @@ The interface controls the landscape, frame rate and animation speed. Settings s
 
 ![Firefly forest](docs/previews/forest.png)
 
-Each landscape has one fixed palette: a deep teal koi pond, a blue night sky, a pale mountain lake, a dark green forest, a cool rain garden, and warm sandstone dunes. Pick a landscape to get its complete appearance. Older theme preferences are retired automatically; your landscape and playback settings are preserved.
+Each landscape has one fixed palette: a deep teal koi pond, a blue night sky, a Midnight mountain lake, a dark green forest, a Midnight rain garden, and Midnight dunes. All landscapes use dark backgrounds. Pick a landscape to get its complete appearance. Older theme preferences are retired automatically; your landscape and playback settings are preserved.
 
 ![The six landscape palettes](docs/previews/landscapes.png)
 

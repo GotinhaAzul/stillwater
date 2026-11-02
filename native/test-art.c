@@ -35,6 +35,10 @@ int main(void) {
     Art a;
     assert(art_init(&a, 390, 844, scene) == 0);
     backgrounds[scene] = art_bg(&a);
+    // Every landscape uses a dark ground; light appearances are retired.
+    assert(((backgrounds[scene] >> 16) & 255) < 64);
+    assert(((backgrounds[scene] >> 8) & 255) < 64);
+    assert((backgrounds[scene] & 255) < 64);
     for (int previous = 0; previous < scene; previous++)
       assert(backgrounds[scene] != backgrounds[previous]);
     art_free(&a);

@@ -93,23 +93,6 @@ static uint32_t art_color(const Art *a, uint32_t color) {
       return palette_blend(p->distant, p->highlight,
                            (((color >> 8) & 255) - 61.) / 90.);
     }
-  case 2: // Mountains: receding ridges, snow, shoreline pines and lake.
-    switch (color) {
-    case 0x4e6879: return p->distant;
-    case 0x354f60: return p->middle;
-    case 0x233d4b: return p->foreground;
-    case 0x142c37: return p->foliage;
-    case 0x091c23: return p->foliage;
-    case 0xa0b2b6: return p->highlight;
-    case 0xd1d5b4: return p->accent;
-    case 0x1b343e: case 0x2b4551: return p->texture;
-    case 0x47616a: case 0x6b7976: case 0x3b5159: return p->shimmer;
-    case 0xe0e5d6: return p->highlight;
-    case 0x40596c: return p->shimmer;
-    default:
-      return palette_blend(p->distant, p->highlight,
-                           (((color >> 8) & 255) - 61.) / 90.);
-    }
   case 3: // Forest: distant trees soften; foreground trees gain depth.
     switch (color) {
     case 0x1b352c: return p->distant;
@@ -121,27 +104,8 @@ static uint32_t art_color(const Art *a, uint32_t color) {
     case 0x728451: return p->shimmer;
     default: return p->highlight;
     }
-  case 4: // Rain: green bamboo remains separate from blue rain and water.
-    switch (color) {
-    case 0x355549: return p->foreground;
-    case 0x4c6a51: return p->foliage;
-    case 0x26454b: return p->texture;
-    case 0x355b64: return p->distant;
-    case 0x618a8e: return p->highlight;
-    case 0x55777c: return p->shimmer;
-    default: return p->middle;
-    }
-  case 5: // Dunes: warm sand layers, terracotta sun, and olive grasses.
-    switch (color) {
-    case 0x4b4231: return p->distant;
-    case 0x706047: return p->middle;
-    case 0x8b7450: return p->foreground;
-    case 0xad8f62: return p->highlight;
-    case 0xc6a36a: return p->accent;
-    case 0xb0a16b: return p->foliage;
-    case 0xc5ab76: return p->shimmer;
-    default: return p->texture;
-    }
+  default: // Mountains, rain, and dunes retain their original Midnight colors.
+    break;
   }
   return color;
 }
@@ -578,11 +542,6 @@ void art_frame(Art *a, double t) {
               hash(x, b) > .7 ? '~' : '.', 0x3b5159);
   }
 }
-static cairo_font_weight_t art_font_weight(const Art *a) {
-  // Thin strokes lose coverage against pale paper at wallpaper scale.
-  static const int light[ART_SCENES] = {0, 0, 1, 0, 1, 1};
-  return light[a->scene] ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL;
-}
 static void rgb(cairo_t *cr, uint32_t color) {
   cairo_set_source_rgb(cr, ((color >> 16) & 255) / 255.,
                        ((color >> 8) & 255) / 255., (color & 255) / 255.);
@@ -590,7 +549,7 @@ static void rgb(cairo_t *cr, uint32_t color) {
 void art_paint(Art *a, cairo_t *cr, Cell *previous) {
   uint32_t bg = art_bg(a);
   cairo_select_font_face(cr, "monospace", CAIRO_FONT_SLANT_NORMAL,
-                         art_font_weight(a));
+                         CAIRO_FONT_WEIGHT_NORMAL);
   cairo_set_font_size(cr, a->cw + 1);
   for (int y = 0; y < a->rows; y++)
     for (int x = 0; x < a->cols; x++) {
@@ -637,7 +596,7 @@ static uint32_t *tile(Art *a, Cell cell, int scale) {
     rgb(cr, art_bg(a));
     cairo_paint(cr);
     cairo_select_font_face(cr, "monospace", CAIRO_FONT_SLANT_NORMAL,
-                           art_font_weight(a));
+                           CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, a->cw + 1);
     rgb(cr, art_color(a, cell.color));
     cairo_move_to(cr, 0, a->cw);
