@@ -11,14 +11,9 @@ DESCRIPTIONS = {
     'rain': 'Bamboo, drifting rain, and ripples in the garden.',
     'dunes': 'Warm sand, a low sun, and wind across the ridges.',
 }
-PALETTES = {'midnight': 'Original scene colors / dark', 'paper': 'Natural pigments / light',
-            'dawn': 'Warm morning colors / light', 'mist': 'Cool atmospheric colors / light',
-            'ember': 'Copper / dark', 'moonlight': 'Blue silver / dark',
-            'sage': 'Botanical green / light', 'sandstone': 'Warm sand / light',
-            'ocean': 'Deep teal / dark', 'plum': 'Soft violet / dark'}
 
 
-def run(controller, scenes, themes):
+def run(controller, scenes):
     def interface(screen):
         try:
             curses.curs_set(0)
@@ -39,13 +34,13 @@ def run(controller, scenes, themes):
         draft = status['settings'].copy()
         selected = 0
         message = 'Choose a setting, then use Left / Right. Enter saves and applies.'
-        fields = ('scene', 'theme', 'fps', 'speed')
+        fields = ('scene', 'fps', 'speed')
         fps_choices = (1, 4, 6, 8, 12, 15, 20, 24, 30)
         speeds = (.25, .5, .75, 1., 1.25, 1.5, 2.)
 
         def change(step):
             field = fields[selected]
-            options = scenes if field == 'scene' else themes if field == 'theme' else fps_choices if field == 'fps' else speeds
+            options = scenes if field == 'scene' else fps_choices if field == 'fps' else speeds
             value = draft[field]
             if value in options:
                 index = options.index(value)
@@ -75,14 +70,13 @@ def run(controller, scenes, themes):
                 text(1, max(22, width - len(state) - 4), state)
                 text(3, 3, 'A little movement. A little room to breathe.', muted)
                 text(5, 3, 'Wallpaper settings', accent)
-                values = [LABELS[draft['scene']], draft['theme'].title(), str(draft['fps']) + ' fps', f'{draft["speed"]:g}x speed']
-                names = ['Landscape', 'Theme', 'Frame rate', 'Animation pace']
+                values = [LABELS[draft['scene']], str(draft['fps']) + ' fps', f'{draft["speed"]:g}x speed']
+                names = ['Landscape', 'Frame rate', 'Animation pace']
                 for index, (name, value) in enumerate(zip(names, values)):
                     marker = '>' if index == selected else ' '
                     text(7 + index * 2, 3, f'{marker} {name:<18} < {value} >', accent if index == selected else 0)
                 if height >= 25:
                     text(16, 5, DESCRIPTIONS[draft['scene']])
-                    text(17, 5, PALETTES[draft['theme']])
                     text(19, 5, 'At login: ' + ('enabled' if status['settings']['enabled'] else 'disabled'))
                 if height >= 25 and width >= 88:
                     x = 55

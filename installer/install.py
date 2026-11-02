@@ -87,8 +87,7 @@ def install(payload):
         settings['scene'] = 'pond'
     if not isinstance(settings.get('fps'), int) or not 1 <= settings['fps'] <= 30:
         settings['fps'] = 12
-    if settings.get('theme') not in ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight', 'sage', 'sandstone', 'ocean', 'plum'):
-        settings['theme'] = 'midnight'
+    settings.pop('theme', None)
     if type(settings.get('speed')) not in (float, int) or not .25 <= settings['speed'] <= 2:
         settings['speed'] = 1.0
     settings['enabled'] = True
@@ -101,7 +100,7 @@ def install(payload):
             '\nComment=Native animated ASCII wallpaper\nExec="' + str(link).replace('"', '\\"') + '" ' + slug +
             '\nIcon=preferences-desktop-wallpaper\nTerminal=false\nStartupNotify=false\nCategories=Settings;DesktopSettings;\nKeywords=wallpaper;ASCII;ambient;stillwater;\n')
     (apps / 'stillwater-settings.desktop').write_text(
-        '[Desktop Entry]\nType=Application\nName=Stillwater — Settings\nComment=Choose scenes, palettes and animation settings\nExec="' + str(link).replace('"', '\\"') + '" tui\nIcon=preferences-desktop-wallpaper\nTerminal=true\nCategories=Settings;DesktopSettings;\n')
+        '[Desktop Entry]\nType=Application\nName=Stillwater — Settings\nComment=Choose landscapes and animation settings\nExec="' + str(link).replace('"', '\\"') + '" tui\nIcon=preferences-desktop-wallpaper\nTerminal=true\nCategories=Settings;DesktopSettings;\n')
     previous = autostart.read_text()
     backup = None
     if line not in previous:

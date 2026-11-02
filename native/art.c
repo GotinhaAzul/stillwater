@@ -42,11 +42,6 @@ static void put(Art *a, double x, double y, char c, uint32_t color) {
   if (ix >= 0 && ix < a->cols && iy >= 0 && iy < a->rows)
     a->cells[iy * a->cols + ix] = (Cell){color, c};
 }
-uint32_t art_background(int scene) {
-  static const uint32_t backgrounds[ART_SCENES] = {
-      0x081411, 0x080f20, 0x0a1520, 0x09150f, 0x0a1519, 0x18140e};
-  return backgrounds[scene >= 0 && scene < ART_SCENES ? scene : 0];
-}
 // Material roles are independent: a bright fish is not a pale mountain ridge.
 typedef struct {
   uint32_t background, texture, distant, middle, foreground;
@@ -54,19 +49,7 @@ typedef struct {
 } ScenePalette;
 #include "scene-palettes.h"
 uint32_t art_bg(const Art *a) {
-  return a->theme ? scene_palettes[a->theme][a->scene].background
-                  : art_background(a->scene);
-}
-int art_set_theme(Art *a, int theme) {
-  if (theme < 0 || theme >= ART_THEMES)
-    return -1;
-  if (a->cache && theme != a->theme)
-    for (int i = 0; i < TILE_SLOTS; i++) {
-      free(a->cache->tiles[i].pixels);
-      a->cache->tiles[i] = (Tile){0};
-    }
-  a->theme = theme;
-  return 0;
+  return scene_palettes[a->scene].background;
 }
 static uint32_t palette_blend(uint32_t from, uint32_t to, double amount) {
   uint32_t result = 0;
@@ -78,9 +61,7 @@ static uint32_t palette_blend(uint32_t from, uint32_t to, double amount) {
   return result;
 }
 static uint32_t art_color(const Art *a, uint32_t color) {
-  if (!a->theme)
-    return color;
-  const ScenePalette *p = &scene_palettes[a->theme][a->scene];
+  const ScenePalette *p = &scene_palettes[a->scene];
   switch (a->scene) {
   case 0: // Pond: water, reeds, lily pads, flowers, and copper koi.
     switch (color) {
@@ -599,8 +580,8 @@ void art_frame(Art *a, double t) {
 }
 static cairo_font_weight_t art_font_weight(const Art *a) {
   // Thin strokes lose coverage against pale paper at wallpaper scale.
-  static const int light[ART_THEMES] = {0, 1, 1, 1, 0, 0, 1, 1, 0, 0};
-  return light[a->theme] ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL;
+  static const int light[ART_SCENES] = {0, 0, 1, 0, 1, 1};
+  return light[a->scene] ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL;
 }
 static void rgb(cairo_t *cr, uint32_t color) {
   cairo_set_source_rgb(cr, ((color >> 16) & 255) / 255.,

@@ -36,10 +36,10 @@ with tempfile.TemporaryDirectory(prefix='stillwater-controller-test-') as direct
 
     settings_path = home / '.config/stillwater/settings.json'
     cli('disable')
-    cli('theme', 'paper')
+    cli('theme', 'paper', success=False)
     cli('speed', '.5')
     settings = json.loads(settings_path.read_text())
-    assert settings['theme'] == 'paper' and settings['speed'] == .5 and not settings['enabled']
+    assert 'theme' not in settings and settings['speed'] == .5 and not settings['enabled']
     for arguments in [('theme', 'unknown'), ('fps', '0'), ('fps', 'fast'), ('speed', 'nan'), ('speed', '3')]:
         cli(*arguments, success=False)
         assert json.loads(settings_path.read_text()) == settings
@@ -50,15 +50,13 @@ with tempfile.TemporaryDirectory(prefix='stillwater-controller-test-') as direct
     try:
         cli('forest')
         status = json.loads(cli('status', '--json'))
-        assert status['process']['scene'] == 'forest' and status['process']['theme'] == 'paper'
+        assert status['process']['scene'] == 'forest' and 'theme' not in status['process']
         cli('pause')
-        cli('theme', 'dawn')  # Restarts while preserving pause state.
-        assert json.loads(cli('status', '--json'))['process']['paused']
-        for theme in ('sage', 'sandstone', 'ocean', 'plum'):
-            cli('theme', theme)
+        for scene in ('pond', 'sky', 'mountains', 'rain', 'dunes'):
+            cli(scene)
             status = json.loads(cli('status', '--json'))
-            assert status['settings']['theme'] == theme
-            assert status['process']['theme'] == theme and status['process']['paused']
+            assert status['settings']['scene'] == scene
+            assert status['process']['scene'] == scene and status['process']['paused']
         cli('fps', '8')
         assert json.loads(cli('status', '--json'))['process']['fps'] == 8
         cli('disable')
@@ -71,9 +69,11 @@ with tempfile.TemporaryDirectory(prefix='stillwater-controller-test-') as direct
     print('PASS: CLI validation, inactive setting changes, start, pause-preserving updates and disable on isolated Wayland.')
 
     # Old settings gain defaults; malformed fields recover without starting.
-    settings_path.write_text(json.dumps({'scene': 'pond', 'fps': 12, 'enabled': False}))
+    settings_path.write_text(json.dumps({'scene': 'pond', 'theme': 'paper', 'fps': 12, 'enabled': False}))
     status = json.loads(cli('status', '--json'))
-    assert status['settings']['theme'] == 'midnight' and status['settings']['speed'] == 1
+    assert 'theme' not in status['settings'] and status['settings']['speed'] == 1
+    cli('fps', '12')
+    assert 'theme' not in json.loads(settings_path.read_text())
     settings_path.write_text(json.dumps({'scene': 'bad', 'fps': 'bad', 'enabled': False}))
     assert json.loads(cli('status', '--json'))['settings']['scene'] == 'pond'
     settings_path.write_text(json.dumps({'scene': 'pond', 'fps': 12, 'enabled': False}))
@@ -100,11 +100,11 @@ with tempfile.TemporaryDirectory(prefix='stillwater-controller-test-') as direct
     master, process = open_tui(28, 100)
     try:
         assert b'STILLWATER' in drain(master, .5)
-        # Select sky, paper, 15 fps and 1.25x, then apply while disabled.
-        os.write(master, b'ljljljl\n')
+        # Select sky, 15 fps and 1.25x, then apply while disabled.
+        os.write(master, b'ljljl\n')
         drain(master)
         current = json.loads(settings_path.read_text())
-        assert current == {'scene': 'sky', 'theme': 'paper', 'fps': 15, 'speed': 1.25, 'enabled': False}, current
+        assert current == {'scene': 'sky', 'fps': 15, 'speed': 1.25, 'enabled': False}, current
         assert json.loads(cli('status', '--json'))['process'] == {}  # TUI holds no lock.
         os.write(master, b'p')
         assert b'stopped' in drain(master)

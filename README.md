@@ -1,6 +1,6 @@
 # Stillwater
 
-Six quiet, animated ASCII landscapes, light and dark palettes, and a terminal interface for making the desktop your own.
+Six quiet, animated ASCII landscapes with their own colors, and a terminal interface for making the desktop your own.
 
 Stillwater runs as a small native Wayland wallpaper on Omarchy/Hyprland. The terminal interface uses Python’s standard library and adds no dependencies. Standalone HTML versions of the original three scenes work offline in a browser or a web wallpaper application.
 
@@ -36,7 +36,7 @@ stillwater tui
 
 Use **Up/Down** to select a setting and **Left/Right** to change it. **Enter** saves and applies. **S** enables the wallpaper, **P** pauses/resumes, **X** restores your static wallpaper and disables animation at login, and **Q** closes the interface. Closing the TUI leaves the wallpaper running independently.
 
-The interface controls the scene, theme, frame rate and animation speed. Settings stay pending until applied. If animation is disabled, applying settings saves them without starting a wallpaper. The interface handles small terminals and does not hold the controller lock while open.
+The interface controls the landscape, frame rate and animation speed. Settings stay pending until applied. If animation is disabled, applying settings saves them without starting a wallpaper. The interface handles small terminals and does not hold the controller lock while open.
 
 | Landscape | What moves |
 |---|---|
@@ -49,30 +49,14 @@ The interface controls the scene, theme, frame rate and animation speed. Setting
 
 ![Firefly forest](docs/previews/forest.png)
 
-| Theme | Appearance |
-|---|---|
-| `midnight` | Original dark colors |
-| `paper` | Warm ivory, light |
-| `dawn` | Soft peach, light |
-| `mist` | Cool porcelain, light |
-| `ember` | Dark copper |
-| `moonlight` | Dark blue and silver |
-| `sage` | Light botanical green |
-| `sandstone` | Light warm sand and brown ink |
-| `ocean` | Dark teal and sea glass |
-| `plum` | Dark violet and lilac |
+Each landscape has one fixed palette: a deep teal koi pond, a blue night sky, a pale mountain lake, a dark green forest, a cool rain garden, and warm sandstone dunes. Pick a landscape to get its complete appearance. Older theme preferences are retired automatically; your landscape and playback settings are preserved.
 
-Each theme has a fixed light or dark appearance; choose a theme to change it. Every landscape has its own hand-selected material palette in each theme: copper koi and green pads, blue sky silhouettes, slate mountain layers and pine trees, green forest depths, blue rain and bamboo, and ochre dune ridges. Light appearances preserve these material colors and give foreground layers stronger ink. Every native scene supports every theme. Existing installations keep their scene and frame rate and default to midnight colors and normal speed.
-
-![Custom light palettes for all six landscapes](docs/previews/light-landscapes.png)
-
-![Rain garden in the mist palette](docs/previews/rain-mist.png)
+![The six landscape palettes](docs/previews/landscapes.png)
 
 For scripts and quick changes:
 
 ```sh
 stillwater forest       # choose a scene and enable the wallpaper
-stillwater theme paper  # set a palette; leaves a disabled wallpaper stopped
 stillwater fps 8        # default 12; supported 1–30
 stillwater speed 0.5    # default 1; supported 0.25–2
 stillwater pause
@@ -83,7 +67,7 @@ stillwater disable      # static wallpaper, including after login
 stillwater enable
 ```
 
-`stillwater stop` stops the current animation without disabling the next login's autostart. `stillwater start` starts it again if enabled. With redirected input/output, bare `stillwater` prints status rather than entering the TUI. Palette, frame-rate and speed changes preserve a running wallpaper’s pause state.
+`stillwater stop` stops the current animation without disabling the next login's autostart. `stillwater start` starts it again if enabled. With redirected input/output, bare `stillwater` prints status rather than entering the TUI. Landscape, frame-rate and speed changes preserve a running wallpaper’s pause state.
 
 ## Lightweight by design
 
@@ -123,7 +107,7 @@ make installer
 Run directly inside a Wayland desktop supporting layer-shell:
 
 ```sh
-./native/build/stillwater-native --scene dunes --theme paper --fps 12 --speed 0.5
+./native/build/stillwater-native --scene dunes --fps 12 --speed 0.5
 ```
 
 Render a still or benchmark without a desktop:
@@ -133,7 +117,7 @@ Render a still or benchmark without a desktop:
 ./native/build/stillwater-native --scene pond --benchmark
 ```
 
-Tests cover cached rasterization and partial damage against complete Cairo redraws, alternating buffer reuse, 1×/2× scaling, real Wayland frame commits in an isolated test compositor, pause/resume, fresh/repeat installation in temporary homes, legacy settings migration, and keyboard interaction with the real TUI through pseudo-terminals. Renderer checks cover all 36 scene/palette combinations, three sizes and 1×/2× scaling. They do not connect to your desktop.
+Tests cover cached rasterization and partial damage against complete Cairo redraws, alternating buffer reuse, 1×/2× scaling, real Wayland frame commits in an isolated test compositor, pause/resume, fresh/repeat installation in temporary homes, legacy settings migration, and keyboard interaction with the real TUI through pseudo-terminals. Renderer checks cover all six landscape palettes, three sizes and 1×/2× scaling. They do not connect to your desktop.
 
 ## Files and configuration
 

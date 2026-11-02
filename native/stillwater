@@ -19,8 +19,7 @@ STATE = Path(os.environ.get('XDG_STATE_HOME', HOME / '.local/state')) / 'stillwa
 RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
 BINARY = INSTALL / 'stillwater-native'
 SCENES = ('pond', 'sky', 'mountains', 'forest', 'rain', 'dunes')
-THEMES = ('midnight', 'paper', 'dawn', 'mist', 'ember', 'moonlight', 'sage', 'sandstone', 'ocean', 'plum')
-DEFAULTS = {'scene': 'pond', 'theme': 'midnight', 'fps': 12, 'speed': 1.0, 'enabled': True}
+DEFAULTS = {'scene': 'pond', 'fps': 12, 'speed': 1.0, 'enabled': True}
 
 
 def read_json(path, default):
@@ -40,8 +39,6 @@ def write_json(path, value):
 def validate(values):
     if values.get('scene') not in SCENES:
         raise ValueError('Choose a scene: ' + ', '.join(SCENES))
-    if values.get('theme') not in THEMES:
-        raise ValueError('Choose a theme: ' + ', '.join(THEMES))
     if type(values.get('fps')) is not int or not 1 <= values['fps'] <= 30:
         raise ValueError('Frame rate must be an integer from 1 to 30.')
     if (type(values.get('speed')) not in (float, int) or
@@ -117,7 +114,7 @@ class Controller:
             if len(sockets) != 1:
                 raise ValueError('Cannot select the desktop. Set WAYLAND_DISPLAY and try again.')
             env['WAYLAND_DISPLAY'] = sockets[0].name
-        command = [str(BINARY), '--scene', settings['scene'], '--theme', settings['theme'],
+        command = [str(BINARY), '--scene', settings['scene'],
                    '--fps', str(settings['fps']), '--speed', str(settings['speed'])]
         with (STATE / 'wallpaper.log').open('a') as log:
             child = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL,
@@ -129,7 +126,7 @@ class Controller:
         if paused:
             os.kill(child.pid, signal.SIGUSR1)
         write_json(self.process_path, {'pid': child.pid, **settings, 'paused': paused})
-        return f'Running {settings["scene"]} / {settings["theme"]} / {settings["fps"]} fps'
+        return f'Running {settings["scene"]} / {settings["fps"]} fps'
 
     def update(self, changes, activate=False):
         with self.locked():
@@ -177,10 +174,10 @@ def main():
     arguments = sys.argv[1:]
     command = arguments[0] if arguments else ('tui' if sys.stdin.isatty() and sys.stdout.isatty() else 'status')
     if command in ('help', '--help', '-h'):
-        print('Usage: stillwater [tui|status [--json]|list|SCENE|theme PALETTE|fps 1..30|speed 0.25..2|start|stop|pause|enable|disable]')
+        print('Usage: stillwater [tui|status [--json]|list|SCENE|fps 1..30|speed 0.25..2|start|stop|pause|enable|disable]')
         return
     if command == 'list':
-        print('Scenes: ' + ', '.join(SCENES) + '\nThemes: ' + ', '.join(THEMES))
+        print('Scenes: ' + ', '.join(SCENES))
         return
     controller = Controller()
     if command == 'tui':
@@ -189,15 +186,15 @@ def main():
         spec = importlib.util.spec_from_file_location('stillwater_tui', INSTALL / 'stillwater_tui.py')
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        module.run(controller, SCENES, THEMES)
+        module.run(controller, SCENES)
     elif command in SCENES and len(arguments) == 1:
         print(controller.update({'scene': command}, activate=True))
-    elif command in ('theme', 'fps', 'speed'):
+    elif command in ('fps', 'speed'):
         if len(arguments) != 2:
             raise ValueError('Supply one value; see stillwater --help.')
         value = arguments[1]
         try:
-            value = int(value) if command == 'fps' else float(value) if command == 'speed' else value
+            value = int(value) if command == 'fps' else float(value)
         except ValueError as error:
             raise ValueError('Use an integer frame rate (1–30) or a numeric speed (0.25–2).') from error
         print(controller.update({command: value}))
@@ -209,7 +206,7 @@ def main():
             print(json.dumps(status))
         else:
             record = status['process']
-            print(f'{record["scene"]} / {record.get("theme", "midnight")} / {record["fps"]} fps / '
+            print(f'{record["scene"]} / {record["fps"]} fps / '
                   f'{"paused" if record.get("paused") else "playing"} / pid {record["pid"]}' if record else 'Stopped')
     elif command in ('start', 'stop', 'enable', 'disable', 'pause') and len(arguments) == 1:
         print(controller.action(command))

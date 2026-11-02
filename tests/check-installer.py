@@ -26,7 +26,7 @@ for extension in ('lua', 'conf'):
                                     env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
         assert json.loads((config / 'stillwater/settings.json').read_text()) == {
-            'scene': 'mountains', 'theme': 'paper', 'fps': 8, 'speed': .5, 'enabled': True}
+            'scene': 'mountains', 'fps': 8, 'speed': .5, 'enabled': True}
         assert len(list((config / 'hypr').glob('*.before-stillwater-*'))) == 1
         assert autostart.read_text().count('Stillwater: native') == 1
         assert (home / '.local/bin/stillwater').is_symlink()

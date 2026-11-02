@@ -2,12 +2,13 @@ from pathlib import Path
 import os,subprocess,tempfile,time,signal
 root=Path(__file__).resolve().parent
 binary=root.parent/'native/build/stillwater-native'
-for scene,theme in (('pond','midnight'),('sky','paper'),('mountains','dawn'),('forest','ember'),('rain','mist'),('dunes','moonlight')):
+assert subprocess.run([str(binary), '--theme', 'paper'], capture_output=True).returncode == 2
+for scene in ('pond','sky','mountains','forest','rain','dunes'):
  with tempfile.TemporaryDirectory(prefix='stillwater-wayland-test-') as directory:
   env=os.environ.copy();env.update(XDG_RUNTIME_DIR=directory,WAYLAND_DISPLAY='stillwater-test')
   server=subprocess.Popen([str(root/'build/wayland-fixture')],cwd=directory,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
   assert server.stdout.readline().strip()=='READY'
-  client=subprocess.Popen([str(binary),'--scene',scene,'--theme',theme,'--speed','0.5'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+  client=subprocess.Popen([str(binary),'--scene',scene,'--speed','0.5'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
   try:
    time.sleep(.45);assert client.poll() is None
    client.send_signal(signal.SIGUSR1);time.sleep(.15)

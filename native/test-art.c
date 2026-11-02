@@ -30,30 +30,22 @@ int main(void) {
   Art invalid;
   assert(art_init(&invalid, 0, 1080, 0) == -1);
   assert(art_init(&invalid, 1920, 1080, ART_SCENES) == -1);
-  // A theme is designed for each landscape, including its ground color.
-  // The former global recoloring gave every landscape the same background.
-  for (int theme = 1; theme < ART_THEMES; theme++) {
-    uint32_t backgrounds[ART_SCENES];
-    for (int scene = 0; scene < ART_SCENES; scene++) {
-      Art a;
-      assert(art_init(&a, 390, 844, scene) == 0);
-      assert(art_set_theme(&a, theme) == 0);
-      backgrounds[scene] = art_bg(&a);
-      for (int previous = 0; previous < scene; previous++)
-        assert(backgrounds[scene] != backgrounds[previous]);
-      art_free(&a);
-    }
+  uint32_t backgrounds[ART_SCENES];
+  for (int scene = 0; scene < ART_SCENES; scene++) {
+    Art a;
+    assert(art_init(&a, 390, 844, scene) == 0);
+    backgrounds[scene] = art_bg(&a);
+    for (int previous = 0; previous < scene; previous++)
+      assert(backgrounds[scene] != backgrounds[previous]);
+    art_free(&a);
   }
   const int sizes[][2] = {{1, 1}, {390, 844}, {1920, 1080}};
   for (int scene = 0; scene < ART_SCENES; scene++)
     for (int z = 0; z < 3; z++)
-      for (int scale = 1; scale <= 2; scale++)
-        for (int theme = 0; theme < ART_THEMES; theme++) {
+      for (int scale = 1; scale <= 2; scale++) {
           int w = sizes[z][0], h = sizes[z][1];
           Art a;
           assert(art_init(&a, w, h, scene) == 0);
-          assert(art_set_theme(&a, theme) == 0);
-          assert(art_set_theme(&a, ART_THEMES) == -1);
           size_t cell_bytes = (size_t)a.cols * a.rows * sizeof(Cell);
           Cell *previous[2] = {calloc(1, cell_bytes), calloc(1, cell_bytes)};
           Cell *presented = malloc(cell_bytes);
@@ -111,7 +103,7 @@ int main(void) {
           art_free(&a);
         }
   puts("PASS: cached tiles and partial damage match full Cairo rendering for 6 "
-       "scenes × 10 themes × 3 sizes × 2 scales × 10 frames, including "
+       "landscapes × 3 sizes × 2 scales × 10 frames, including "
        "alternating buffer "
        "reuse. Invalid input and unchanged damage checks passed.");
   return 0;
